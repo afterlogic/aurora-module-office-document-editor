@@ -75,7 +75,8 @@ class Module extends \Aurora\System\Module\AbstractModule
 	public function init()
 	{
 		$this->AddEntries(array(
-			'editor' => 'EntryEditor'
+			'editor' => 'EntryEditor',
+			'ode-callback' => 'EntryCallback'
 		)
 	);
 		$this->subscribeEvent('System::RunEntry::before', array($this, 'onBeforeFileViewEntry'));
@@ -294,6 +295,11 @@ class Module extends \Aurora\System\Module\AbstractModule
 		}
 
 		return $sResult;
+	}
+
+	public function EntryCallback()
+	{
+		return '';
 	}
 
 	/**
