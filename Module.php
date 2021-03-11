@@ -299,7 +299,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 
 	public function EntryCallback()
 	{
-		return '';
+		return "{\"error\":0}";
 	}
 
 	/**
