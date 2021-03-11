@@ -215,7 +215,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 		$mode = 'edit';
 		$fileuriUser = '';
 		$serverPath = 'https://oo.afterlogic.com:8088';
-		$callbackUrl = './?ocv-callback';
+		$callbackUrl = $this->oHttp->GetFullUrl() . '?ode-callback';
 
 		if (isset($fileuri))
 		{

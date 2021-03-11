@@ -3,10 +3,10 @@
 module.exports = function (oAppData) {
 	var
 		App = require('%PathToCoreWebclientModule%/js/App.js'),
-				
+
 		CAbstractFileModel = require('%PathToCoreWebclientModule%/js/models/CAbstractFileModel.js')
 	;
-	
+
 	if (App.isUserNormalOrTenant())
 	{
 		return {
@@ -16,6 +16,6 @@ module.exports = function (oAppData) {
 			}
 		};
 	}
-	
+
 	return null;
 };
