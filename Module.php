@@ -122,9 +122,9 @@ class Module extends \Aurora\System\Module\AbstractModule
 	{
 		$ext = strtolower('.' . pathinfo($filename, PATHINFO_EXTENSION));
 
-		if (in_array($ext, $this->ExtsDocument)) return "text";
-		if (in_array($ext, $this->ExtsSpreadsheet)) return "spreadsheet";
-		if (in_array($ext, $this->ExtsPresentation)) return "presentation";
+		if (in_array($ext, $this->ExtsDocument)) return "word";
+		if (in_array($ext, $this->ExtsSpreadsheet)) return "cell";
+		if (in_array($ext, $this->ExtsPresentation)) return "slide";
 		return "";
 	}
 
@@ -180,15 +180,8 @@ class Module extends \Aurora\System\Module\AbstractModule
 
 					$sHash = \Aurora\System\Api::EncodeKeyValues($aValues);
 
-					// 'https://view.officeapps.live.com/op/view.aspx?src=';
-					// 'https://view.officeapps.live.com/op/embed.aspx?src=';
-					// 'https://docs.google.com/viewer?embedded=true&url=';
-
-					$sViewerUrl = './?editor&filename='. $sFileName .'&fileuri=';
-					if (!empty($sViewerUrl))
-					{
-						\header('Location: ' . $sViewerUrl . urlencode($_SERVER['HTTP_REFERER'] . '?' . $sEntry .'/' . $sHash . '/' . $sAction));
-					}
+					$sViewerUrl = './?editor=' . urlencode($sEntry .'/' . $sHash . '/' . $sAction);
+					\header('Location: ' . $sViewerUrl);
 				}
 				else
 				{
@@ -208,15 +201,43 @@ class Module extends \Aurora\System\Module\AbstractModule
 	public function EntryEditor()
 	{
 		$sResult = '';
-		$fileuri = isset($_GET['fileuri']) ? $_GET['fileuri'] : null;
-		$filename = isset($_GET['filename']) ? $_GET['filename'] : null;
+		$fileuri = isset($_GET['editor']) ? $_GET['editor'] : null;
+		$filename = null;
+		$sHash = null;
+		$aHashValues = [];
+		if (isset($fileuri))
+		{
+			$fileuri = \urldecode($fileuri);
+			$aFileuri = \explode('/', $fileuri);
+			if (isset($aFileuri[1]))
+			{
+				$sHash = $aFileuri[1];
+			}
+			$fileuri = $this->oHttp->GetFullUrl() . '?' . $fileuri;
+		}
+		if (isset($sHash))
+		{
+			$aHashValues = \Aurora\System\Api::DecodeKeyValues($sHash);
+			if (isset($aHashValues['FileName']))
+			{
+				$filename = $aHashValues['FileName'];
+			}
+			if (isset($aHashValues['AuthToken']))
+			{
+				unset($aHashValues['AuthToken']);
+			}
+			$sHash = \Aurora\System\Api::EncodeKeyValues($aHashValues);
+		}
+
 		$filetype = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-		$docKey = '';
+		$docKey = \md5($sHash . time());
 		$lang = 'en';
 		$mode = 'edit';
 		$fileuriUser = '';
-		$serverPath = 'https://oo.afterlogic.com:8088';
-		$callbackUrl = $this->oHttp->GetFullUrl() . '?ode-callback';
+//		$serverPath = 'https://oo.afterlogic.com:8088';
+		$serverPath = 'http://192.168.1.224';
+
+		$callbackUrl = $this->oHttp->GetFullUrl() . '?ode-callback/' . $sHash;
 
 		if (isset($fileuri))
 		{
@@ -224,7 +245,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 			if ($oUser)
 			{
 				$uid = $oUser->EntityId;
-				$uname = $oUser->Name;
+				$uname = !empty($oUser->Name) ? $oUser->Name : $oUser->PublicId;
 			}
 
 			$config = [
@@ -234,9 +255,9 @@ class Module extends \Aurora\System\Module\AbstractModule
 					"title" => $filename,
 					"url" => $fileuri,
 					"fileType" => $filetype,
-					"key" => $docKey,
+//					"key" => $docKey,
 					"info" => [
-						"author" => "Me",
+						"author" => $uname,
 						"created" => date('d.m.y')
 					],
 					"permissions" => [
@@ -265,11 +286,9 @@ class Module extends \Aurora\System\Module\AbstractModule
 						"toolbarDocked" => "top",
 					],
 					"customization" => [
-						"about" => true,
-						"feedback" => true,
-						"goback" => [
-							"url" => $serverPath,
-						]
+						"about" => false,
+						"feedback" => false,
+						"goback" => false
 					]
 				]
 			];
@@ -299,6 +318,45 @@ class Module extends \Aurora\System\Module\AbstractModule
 
 	public function EntryCallback()
 	{
+		if (($body_stream = file_get_contents("php://input")) === FALSE)
+		{
+			echo "Bad Request";
+		}
+
+		$data = json_decode($body_stream, TRUE);
+
+		if ($data["status"] == 2)
+		{
+			$sHash = (string) \Aurora\System\Router::getItemByIndex(1, '');
+			if (!empty($sHash))
+			{
+				$aHashValues = \Aurora\System\Api::DecodeKeyValues($sHash);
+				\Aurora\System\Api::LogObject($aHashValues, \Aurora\System\Enums\LogLevel::Full, 'only-office-');
+
+				$aHashValues['UserId'];
+				$rData = \fopen($data["url"], "r");
+
+				$aArgs = [
+					'UserId' => (int) $aHashValues['UserId'],
+					'Type' => $aHashValues['Type'],
+					'Path' => $aHashValues['Path'],
+					'Name' => $aHashValues['Name'],
+					'Data' => $rData,
+					'Overwrite' => true,
+					'RangeType' => 0,
+					'Offset' => 0,
+					'ExtendedProps' => []
+				];
+				\Aurora\System\Api::skipCheckUserRole(true);
+				$this->broadcastEvent(
+					'Files::CreateFile',
+					$aArgs,
+					$mResult
+				);
+				\Aurora\System\Api::skipCheckUserRole(false);
+			}
+
+		}
 		return "{\"error\":0}";
 	}
 
