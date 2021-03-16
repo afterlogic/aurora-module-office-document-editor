@@ -156,6 +156,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 			$sEntry = (string) \Aurora\System\Router::getItemByIndex(0, '');
 			$sHash = (string) \Aurora\System\Router::getItemByIndex(1, '');
 			$sAction = (string) \Aurora\System\Router::getItemByIndex(2, '');
+			$sMode = ($sEntry !== 'download-file') ? '&mode=read' : '';
 
 			$aValues = \Aurora\System\Api::DecodeKeyValues($sHash);
 
@@ -180,7 +181,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 
 					$sHash = \Aurora\System\Api::EncodeKeyValues($aValues);
 
-					$sViewerUrl = './?editor=' . urlencode($sEntry .'/' . $sHash . '/' . $sAction);
+					$sViewerUrl = './?editor=' . urlencode($sEntry .'/' . $sHash . '/' . $sAction) . $sMode;
 					\header('Location: ' . $sViewerUrl);
 				}
 				else
@@ -202,9 +203,12 @@ class Module extends \Aurora\System\Module\AbstractModule
 	{
 		$sResult = '';
 		$fileuri = isset($_GET['editor']) ? $_GET['editor'] : null;
+		$bIsReadOnlyMode = (isset($_GET['mode']) && $_GET['mode'] === 'read') ? true : false;
 		$filename = null;
 		$sHash = null;
 		$aHashValues = [];
+		$docKey = null;
+		$lastModified = time();
 		if (isset($fileuri))
 		{
 			$fileuri = \urldecode($fileuri);
@@ -215,6 +219,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 			}
 			$fileuri = $this->oHttp->GetFullUrl() . '?' . $fileuri;
 		}
+
 		if (isset($sHash))
 		{
 			$aHashValues = \Aurora\System\Api::DecodeKeyValues($sHash);
@@ -222,30 +227,41 @@ class Module extends \Aurora\System\Module\AbstractModule
 			{
 				$filename = $aHashValues['FileName'];
 			}
+			else if (isset($aHashValues['Name']))
+			{
+				$filename = $aHashValues['Name'];
+			}
 			if (isset($aHashValues['AuthToken']))
 			{
 				unset($aHashValues['AuthToken']);
 			}
 			$sHash = \Aurora\System\Api::EncodeKeyValues($aHashValues);
+
+			$oFileInfo = \Aurora\Modules\Files\Module::Decorator()->GetFileInfo($aHashValues['UserId'], $aHashValues['Type'], $aHashValues['Path'], $aHashValues['Id']);
+			if ($oFileInfo)
+			{
+				$lastModified = $oFileInfo->LastModified;
+				$docKey = \md5($oFileInfo->ETag . $lastModified);
+			}
 		}
 
 		$filetype = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-		$docKey = \md5($sHash . time());
 		$lang = 'en';
-		$mode = 'edit';
+		$mode = $bIsReadOnlyMode ? 'view' : 'edit';
 		$fileuriUser = '';
-//		$serverPath = 'https://oo.afterlogic.com:8088';
-		$serverPath = 'http://192.168.1.224';
+
+		$serverPath = $this->getConfig('DocumentServerUrl' , null);
 
 		$callbackUrl = $this->oHttp->GetFullUrl() . '?ode-callback/' . $sHash;
 
-		if (isset($fileuri))
+		if (isset($fileuri) && isset($serverPath))
 		{
 			$oUser = \Aurora\System\Api::getAuthenticatedUser();
 			if ($oUser)
 			{
 				$uid = $oUser->EntityId;
 				$uname = !empty($oUser->Name) ? $oUser->Name : $oUser->PublicId;
+				$lang = \Aurora\System\Utils::ConvertLanguageNameToShort($oUser->Language);
 			}
 
 			$config = [
@@ -255,19 +271,19 @@ class Module extends \Aurora\System\Module\AbstractModule
 					"title" => $filename,
 					"url" => $fileuri,
 					"fileType" => $filetype,
-//					"key" => $docKey,
+					"key" => $docKey,
 					"info" => [
 						"author" => $uname,
-						"created" => date('d.m.y')
+						"created" => date('d.m.y', $lastModified)
 					],
 					"permissions" => [
-						"comment" => true,
+						"comment" => !$bIsReadOnlyMode,
 						"download" => true,
-						"edit" => true,
-						"fillForms" => true,
-						"modifyFilter" => true,
-						"modifyContentControl" => true,
-						"review" => true
+						"edit" => !$bIsReadOnlyMode,
+						"fillForms" => !$bIsReadOnlyMode,
+						"modifyFilter" => !$bIsReadOnlyMode,
+						"modifyContentControl" => !$bIsReadOnlyMode,
+						"review" => !$bIsReadOnlyMode
 					]
 				],
 				"editorConfig" => [
@@ -286,16 +302,20 @@ class Module extends \Aurora\System\Module\AbstractModule
 						"toolbarDocked" => "top",
 					],
 					"customization" => [
+						"chat" => !$bIsReadOnlyMode,
+						"comments" => !$bIsReadOnlyMode,
 						"about" => false,
 						"feedback" => false,
-						"goback" => false
+						"goback" => false,
+						"logo"=> [
+							"image"=> $this->oHttp->GetFullUrl() . '/static/styles/images/logo.png',
+						],
 					]
 				]
 			];
 
 			$sResult = \file_get_contents($this->GetPath().'/templates/Editor.html');
 
-			$oApiIntegrator = \Aurora\System\Managers\Integrator::getInstance();
 			$iUserId = \Aurora\System\Api::getAuthenticatedUserId();
 			if (0 < $iUserId)
 			{
@@ -324,14 +344,13 @@ class Module extends \Aurora\System\Module\AbstractModule
 		}
 
 		$data = json_decode($body_stream, TRUE);
-
+		\Aurora\System\Api::LogObject($data, \Aurora\System\Enums\LogLevel::Full, 'only-office-');
 		if ($data["status"] == 2)
 		{
 			$sHash = (string) \Aurora\System\Router::getItemByIndex(1, '');
 			if (!empty($sHash))
 			{
 				$aHashValues = \Aurora\System\Api::DecodeKeyValues($sHash);
-				\Aurora\System\Api::LogObject($aHashValues, \Aurora\System\Enums\LogLevel::Full, 'only-office-');
 
 				$aHashValues['UserId'];
 				$rData = \fopen($data["url"], "r");
