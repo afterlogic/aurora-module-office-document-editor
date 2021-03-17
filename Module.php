@@ -17,55 +17,11 @@ namespace Aurora\Modules\OfficeDocumentEditor;
 class Module extends \Aurora\System\Module\AbstractModule
 {
 
-	public $ExtsSpreadsheet = [
-		".xls",
-		".xlsx",
-		".xlsm",
-		".xlt",
-		".xltx",
-		".xltm",
-		".ods",
-		".fods",
-		".ots",
-		".csv"
-	];
+	public $ExtsSpreadsheet = [".xls", ".xlsx", ".xlsm", ".xlt", ".xltx", ".xltm", ".ods", ".fods", ".ots", ".csv"];
 
-	public $ExtsPresentation = [
-		".pps",
-		".ppsx",
-		".ppsm",
-		".ppt",
-		".pptx",
-		".pptm",
-		".pot",
-		".potx",
-		".potm",
-		".odp",
-		".fodp",
-		".otp"
-	];
+	public $ExtsPresentation = [".pps", ".ppsx", ".ppsm", ".ppt", ".pptx", ".pptm", ".pot", ".potx", ".potm", ".odp", ".fodp", ".otp"];
 
-	public $ExtsDocument = [
-		".doc",
-		".docx",
-		".docm",
-		".dot",
-		".dotx",
-		".dotm",
-		".odt",
-		".fodt",
-		".ott",
-		".rtf",
-		".txt",
-		".html",
-		".htm",
-		".mht",
-		".pdf",
-		".djvu",
-		".fb2",
-		".epub",
-		".xps"
-	];
+	public $ExtsDocument = [".doc", ".docx", ".docm", ".dot", ".dotx", ".dotm", ".odt", ".fodt", ".ott", ".rtf", ".txt", ".html", ".htm", ".mht", ".pdf", ".djvu", ".fb2", ".epub", ".xps"];
 
 	/**
 	 * Initializes module.
@@ -94,28 +50,8 @@ class Module extends \Aurora\System\Module\AbstractModule
 
 	protected function getExtensionsToView()
 	{
-		return $this->getConfig('ExtensionsToView', [
-			'doc',
-			'docx',
-			'docm',
-			'dotm',
-			'dotx',
-			'xlsx',
-			'xlsb',
-			'xls',
-			'xlsm',
-			'pptx',
-			'ppsx',
-			'ppt',
-			'pps',
-			'pptm',
-			'potm',
-			'ppam',
-			'potx',
-			'ppsm',
-			'odt',
-			'odx']
-		);
+		$aExtensions = array_merge ($this->ExtsSpreadsheet, $this->ExtsPresentation, $this->ExtsDocument);
+		return $this->getConfig('ExtensionsToView', $aExtensions);
 	}
 
 	protected function getDocumentType($filename)
@@ -149,7 +85,6 @@ class Module extends \Aurora\System\Module\AbstractModule
 			'download-file',
 			'file-cache',
 			'mail-attachment'
-
 		];
 		if (in_array($aArguments['EntryName'], $aEntries))
 		{
@@ -181,7 +116,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 
 					$sHash = \Aurora\System\Api::EncodeKeyValues($aValues);
 
-					$sViewerUrl = './?editor=' . urlencode($sEntry .'/' . $sHash . '/' . $sAction) . $sMode;
+					$sViewerUrl = './?editor=' . urlencode($sEntry .'/' . $sHash . '/' . $sAction . '/' . $sFileName) . $sMode;
 					\header('Location: ' . $sViewerUrl);
 				}
 				else
@@ -202,6 +137,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 	public function EntryEditor()
 	{
 		$sResult = '';
+		$sFullUrl = $this->oHttp->GetFullUrl();
 		$fileuri = isset($_GET['editor']) ? $_GET['editor'] : null;
 		$bIsReadOnlyMode = (isset($_GET['mode']) && $_GET['mode'] === 'read') ? true : false;
 		$filename = null;
@@ -217,7 +153,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 			{
 				$sHash = $aFileuri[1];
 			}
-			$fileuri = $this->oHttp->GetFullUrl() . '?' . $fileuri;
+			$fileuri = $sFullUrl . '?' . $fileuri;
 		}
 
 		if (isset($sHash))
@@ -237,7 +173,12 @@ class Module extends \Aurora\System\Module\AbstractModule
 			}
 			$sHash = \Aurora\System\Api::EncodeKeyValues($aHashValues);
 
-			$oFileInfo = \Aurora\Modules\Files\Module::Decorator()->GetFileInfo($aHashValues['UserId'], $aHashValues['Type'], $aHashValues['Path'], $aHashValues['Id']);
+			$oFileInfo = \Aurora\Modules\Files\Module::Decorator()->GetFileInfo(
+				$aHashValues['UserId'],
+				$aHashValues['Type'],
+				$aHashValues['Path'],
+				$aHashValues['Id']
+			);
 			if ($oFileInfo)
 			{
 				$lastModified = $oFileInfo->LastModified;
@@ -252,14 +193,14 @@ class Module extends \Aurora\System\Module\AbstractModule
 
 		$serverPath = $this->getConfig('DocumentServerUrl' , null);
 
-		$callbackUrl = $this->oHttp->GetFullUrl() . '?ode-callback/' . $sHash;
+		$callbackUrl = $sFullUrl . '?ode-callback/' . $sHash;
 
 		if (isset($fileuri) && isset($serverPath))
 		{
 			$oUser = \Aurora\System\Api::getAuthenticatedUser();
 			if ($oUser)
 			{
-				$uid = $oUser->EntityId;
+				$uid = (string) $oUser->EntityId;
 				$uname = !empty($oUser->Name) ? $oUser->Name : $oUser->PublicId;
 				$lang = \Aurora\System\Utils::ConvertLanguageNameToShort($oUser->Language);
 			}
@@ -273,8 +214,8 @@ class Module extends \Aurora\System\Module\AbstractModule
 					"fileType" => $filetype,
 					"key" => $docKey,
 					"info" => [
-						"author" => $uname,
-						"created" => date('d.m.y', $lastModified)
+						"owner" => $uname,
+						"uploaded" => date('d.m.y', $lastModified)
 					],
 					"permissions" => [
 						"comment" => !$bIsReadOnlyMode,
@@ -307,9 +248,9 @@ class Module extends \Aurora\System\Module\AbstractModule
 						"about" => false,
 						"feedback" => false,
 						"goback" => false,
-						"logo"=> [
-							"image"=> $this->oHttp->GetFullUrl() . '/static/styles/images/logo.png',
-						],
+						// "logo"=> [
+						// 	"image"=> $sFullUrl . 'static/styles/images/logo.png',
+						// ],
 					]
 				]
 			];
@@ -321,8 +262,6 @@ class Module extends \Aurora\System\Module\AbstractModule
 			{
 				$sResult = strtr($sResult, [
 					'{{DOC_SERV_API_URL}}' => $serverPath . '/web-apps/apps/api/documents/api.js',
-					'{{FILENAME}}' => $filename,
-					'{{FILETYPE}}' => $filetype,
 					'{{CONFIG}}' => \json_encode($config)
 				]);
 				\Aurora\Modules\CoreWebclient\Module::Decorator()->SetHtmlOutputHeaders();
