@@ -23,6 +23,8 @@ class Module extends \Aurora\System\Module\AbstractModule
 
 	public $ExtsDocument = [".doc", ".docx", ".docm", ".dot", ".dotx", ".dotm", ".odt", ".fodt", ".ott", ".rtf", ".txt", ".html", ".htm", ".mht", ".pdf", ".djvu", ".fb2", ".epub", ".xps"];
 
+	public $ExtsReadOnly = [".xls", ".pps", ".doc", ".odt"];
+
 	/**
 	 * Initializes module.
 	 *
@@ -30,27 +32,28 @@ class Module extends \Aurora\System\Module\AbstractModule
 	 */
 	public function init()
 	{
-		$this->AddEntries(array(
+		$this->AddEntries([
 			'editor' => 'EntryEditor',
 			'ode-callback' => 'EntryCallback'
-		)
-	);
-		$this->subscribeEvent('System::RunEntry::before', array($this, 'onBeforeFileViewEntry'));
-		$this->subscribeEvent('Files::GetFile', array($this, 'onGetFile'), 10);
+		]);
+
+		$this->subscribeEvent('System::RunEntry::before', [$this, 'onBeforeFileViewEntry']);
+		$this->subscribeEvent('Files::GetFile', [$this, 'onGetFile'], 10);
+		$this->subscribeEvent('Files::GetItems::after', array($this, 'onAfterGetItems'), 99999);
 	}
 
 	public function GetSettings()
 	{
 		\Aurora\System\Api::checkUserRoleIsAtLeast(\Aurora\System\Enums\UserRole::NormalUser);
 
-		return array(
+		return [
 			'ExtensionsToView' => $this->getExtensionsToView()
-		);
+		];
 	}
 
 	protected function getExtensionsToView()
 	{
-		$aExtensions = array_merge ($this->ExtsSpreadsheet, $this->ExtsPresentation, $this->ExtsDocument);
+		$aExtensions = array_merge($this->ExtsSpreadsheet, $this->ExtsPresentation, $this->ExtsDocument);
 		return $this->getConfig('ExtensionsToView', $aExtensions);
 	}
 
@@ -62,6 +65,13 @@ class Module extends \Aurora\System\Module\AbstractModule
 		if (in_array($ext, $this->ExtsSpreadsheet)) return "cell";
 		if (in_array($ext, $this->ExtsPresentation)) return "slide";
 		return "";
+	}
+
+	protected function isReadOnlyDocument($filename)
+	{
+		$ext = strtolower('.' . pathinfo($filename, PATHINFO_EXTENSION));
+
+		return in_array($ext, $this->ExtsReadOnly);
 	}
 
 	/**
@@ -91,7 +101,6 @@ class Module extends \Aurora\System\Module\AbstractModule
 			$sEntry = (string) \Aurora\System\Router::getItemByIndex(0, '');
 			$sHash = (string) \Aurora\System\Router::getItemByIndex(1, '');
 			$sAction = (string) \Aurora\System\Router::getItemByIndex(2, '');
-			$sMode = ($sEntry !== 'download-file') ? '&mode=read' : '';
 
 			$aValues = \Aurora\System\Api::DecodeKeyValues($sHash);
 
@@ -101,22 +110,22 @@ class Module extends \Aurora\System\Module\AbstractModule
 				$sFileName = isset($aValues['Name']) ? urldecode($aValues['Name']) : '';
 			}
 
-			if ($this->isOfficeDocument($sFileName) && $sAction === 'view')
+			if ($this->isOfficeDocument($sFileName))
 			{
 				if (!isset($aValues['AuthToken']))
 				{
 					$aValues['AuthToken'] = \Aurora\System\Api::UserSession()->Set(
-						array(
+						[
 							'token' => 'auth',
 							'id' => \Aurora\System\Api::getAuthenticatedUserId()
-						),
+						],
 						time(),
 						time() + 60 * 5 // 5 min
 					);
 
 					$sHash = \Aurora\System\Api::EncodeKeyValues($aValues);
 
-					$sViewerUrl = './?editor=' . urlencode($sEntry .'/' . $sHash . '/' . $sAction . '/' . $sFileName) . $sMode;
+					$sViewerUrl = './?editor=' . urlencode($sEntry .'/' . $sHash . '/' . $sAction);
 					\header('Location: ' . $sViewerUrl);
 				}
 				else
@@ -138,8 +147,8 @@ class Module extends \Aurora\System\Module\AbstractModule
 	{
 		$sResult = '';
 		$sFullUrl = $this->oHttp->GetFullUrl();
+		$sMode = 'view';
 		$fileuri = isset($_GET['editor']) ? $_GET['editor'] : null;
-		$bIsReadOnlyMode = (isset($_GET['mode']) && $_GET['mode'] === 'read') ? true : false;
 		$filename = null;
 		$sHash = null;
 		$aHashValues = [];
@@ -167,10 +176,11 @@ class Module extends \Aurora\System\Module\AbstractModule
 			{
 				$filename = $aHashValues['Name'];
 			}
-			if (isset($aHashValues['AuthToken']))
+			if (isset($aHashValues['Edit']))
 			{
-				unset($aHashValues['AuthToken']);
+				$sMode = 'edit';
 			}
+
 			$sHash = \Aurora\System\Api::EncodeKeyValues($aHashValues);
 
 			$oFileInfo = \Aurora\Modules\Files\Module::Decorator()->GetFileInfo(
@@ -182,13 +192,15 @@ class Module extends \Aurora\System\Module\AbstractModule
 			if ($oFileInfo)
 			{
 				$lastModified = $oFileInfo->LastModified;
-				$docKey = \md5($oFileInfo->ETag . $lastModified);
+				$docKey = \md5($oFileInfo->RealPath . $lastModified);
 			}
 		}
 
+		$bIsReadOnlyMode = ($sMode === 'view') ? true : false;
+
 		$filetype = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
 		$lang = 'en';
-		$mode = $bIsReadOnlyMode ? 'view' : 'edit';
+		$mode = $bIsReadOnlyMode || $this->isReadOnlyDocument($filename) ? 'view' : 'edit';
 		$fileuriUser = '';
 
 		$serverPath = $this->getConfig('DocumentServerUrl' , null);
@@ -248,6 +260,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 						"about" => false,
 						"feedback" => false,
 						"goback" => false,
+						"forcesave" => true,
 						// "logo"=> [
 						// 	"image"=> $sFullUrl . 'static/styles/images/logo.png',
 						// ],
@@ -283,7 +296,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 		}
 
 		$data = json_decode($body_stream, TRUE);
-		\Aurora\System\Api::LogObject($data, \Aurora\System\Enums\LogLevel::Full, 'only-office-');
+//		\Aurora\System\Api::LogObject($data, \Aurora\System\Enums\LogLevel::Full, 'only-office-');
 		if ($data["status"] == 2)
 		{
 			$sHash = (string) \Aurora\System\Router::getItemByIndex(1, '');
@@ -328,6 +341,38 @@ class Module extends \Aurora\System\Module\AbstractModule
 		if ($this->isOfficeDocument($aArguments['Name']))
 		{
 			$aArguments['NoRedirect'] = true;
+		}
+	}
+
+		/**
+	 * Writes to $aData variable list of DropBox files if $aData['Type'] is DropBox account type.
+	 *
+	 * @ignore
+	 * @param array $aData Is passed by reference.
+	 */
+	public function onAfterGetItems($aArgs, &$mResult)
+	{
+		if (is_array($mResult))
+		{
+			foreach ($mResult as $oItem)
+			{
+				if ($oItem instanceof \Aurora\Modules\Files\Classes\FileItem && $this->isOfficeDocument($oItem->Name))
+				{
+					if ((isset($oItem->ExtendedProps['Access']) && (int) $oItem->ExtendedProps['Access'] === \Afterlogic\DAV\FS\Permission::Write) || !isset($oItem->ExtendedProps['Access']) 
+						&& !$this->isReadOnlyDocument($oItem->Name))
+					{
+						$sHash = $oItem->getHash();
+						$aHashValues = \Aurora\System\Api::DecodeKeyValues($sHash);
+						$aHashValues['Edit'] = true;
+						$sHash = \Aurora\System\Api::EncodeKeyValues($aHashValues);
+						$oItem->UnshiftAction([
+							'edit' => [
+								'url' => '?download-file/' . $sHash .'/view'
+							]
+						]);
+					}
+				}
+			}
 		}
 	}
 }
