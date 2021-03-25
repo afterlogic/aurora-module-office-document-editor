@@ -2,7 +2,6 @@
 
 var
 	_ = require('underscore'),
-	$ = require('jquery'),
 	ko = require('knockout'),
 
 	CAbstractPopup = require('%PathToCoreWebclientModule%/js/popups/CAbstractPopup.js')
@@ -19,6 +18,7 @@ function CCreateDocumentPopup()
 	this.filename = ko.observable('');
 	this.filename.focus = ko.observable(false);
 	this.filename.error = ko.observable('');
+	this.sExtension = '';
 
 	this.filename.subscribe(function () {
 		this.filename.error('');
@@ -32,25 +32,22 @@ CCreateDocumentPopup.prototype.PopupTemplate = '%ModuleName%_CreateDocumentPopup
 /**
  * @param {Function} fCallback
  */
-CCreateDocumentPopup.prototype.onOpen = function (sBlankName, fCallback)
+CCreateDocumentPopup.prototype.onOpen = function (sBlankName, sExtension, fCallback)
 {
 	this.filename(sBlankName);
 	this.filename.focus(true);
 	this.filename.error('');
-
-	if ($.isFunction(fCallback))
-	{
-		this.fCallback = fCallback;
-	}
+	this.sExtension = sExtension;
+	this.fCallback = fCallback;
 };
 
 CCreateDocumentPopup.prototype.create = function ()
 {
 	this.filename.error('');
 
-	if (this.fCallback)
+	if (_.isFunction(this.fCallback))
 	{
-		var sError = this.fCallback(this.filename());
+		var sError = this.fCallback(this.filename(), this.sExtension);
 		if (sError)
 		{
 			this.filename.error('' + sError);

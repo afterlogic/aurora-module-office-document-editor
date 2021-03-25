@@ -22,7 +22,8 @@ module.exports = function (oAppData) {
 						var oView = oParams.View;
 						if (oView && _.isFunction(oView.registerCreateButtonsController))
 						{
-							oView.registerCreateButtonsController(require('modules/%ModuleName%/js/views/AddFileButtonView.js'));
+							var CAddFileButtonView = require('modules/%ModuleName%/js/views/CAddFileButtonView.js');
+							oView.registerCreateButtonsController(new CAddFileButtonView(oView.storageType, oView.currentPath));
 						}
 					}
 				});
