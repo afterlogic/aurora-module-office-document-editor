@@ -1,0 +1,22 @@
+<div class="popup" style="display: none;">
+	<div class="mask" data-bind="click: cancelPopup"></div>
+	<div class="popup_panel">
+		<span class="close" data-bind="click: cancelPopup"></span>
+
+		<div class="fields">
+			<div class="fieldset">
+				<div class="row">
+					<span class="label" data-bind="i18n: {'key': '%MODULENAME%/LABEL_FILENAME'}"></span>
+					<input class="value input" spellcheck="false" type="text" maxlength="200"
+						data-bind="hasfocus: filename.focus, valueUpdate: 'afterkeydown', value: filename, onEnter: create, css: {'error': '' !== filename.error()}" />
+					<div style="color:red;margin-top:10px;margin-left:150px" data-bind="visible: '' !== filename.error(), text: filename.error"></div>
+				</div>
+			</div>
+			<div class="buttons">
+				<span class="button" data-bind="i18n: {'key': 'COREWEBCLIENT/ACTION_CREATE'}, click: create"></span>
+				<span class="button secondary_button" data-bind="i18n: {'key': 'COREWEBCLIENT/ACTION_CANCEL'}, click: cancelPopup"></span>
+			</div>
+		</div>
+	</div>
+	<span class="helper"></span>
+</div>
