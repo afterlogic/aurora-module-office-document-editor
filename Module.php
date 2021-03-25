@@ -39,7 +39,8 @@ class Module extends \Aurora\System\Module\AbstractModule
 
 		$this->subscribeEvent('System::RunEntry::before', [$this, 'onBeforeFileViewEntry']);
 		$this->subscribeEvent('Files::GetFile', [$this, 'onGetFile'], 10);
-		$this->subscribeEvent('Files::GetItems::after', array($this, 'onAfterGetItems'), 99999);
+		$this->subscribeEvent('Files::GetItems::after', array($this, 'onAfterGetItems'), 20000);
+		$this->subscribeEvent('Files::GetFileInfo::after', array($this, 'onAfterGetFileInfo'), 20000);
 	}
 
 	public function GetSettings()
@@ -288,6 +289,40 @@ class Module extends \Aurora\System\Module\AbstractModule
 		return $sResult;
 	}
 
+	public function CreateBlankDocument($Type, $Path, $FileName)
+	{
+		$mResult = false;
+		$ext = strtolower(pathinfo($FileName, PATHINFO_EXTENSION));
+		$sFilePath = $this->GetPath() . "/data/new." . $ext;
+		if (file_exists($sFilePath))
+		{
+			$rData = \fopen($sFilePath , "r");
+
+			$aArgs = [
+				'UserId' => \Aurora\System\Api::getAuthenticatedUserId(),
+				'Type' => $Type,
+				'Path' => $Path,
+				'Name' => $FileName,
+				'Data' => $rData,
+				'Overwrite' => false,
+				'RangeType' => 0,
+				'Offset' => 0,
+				'ExtendedProps' => []
+			];
+			$this->broadcastEvent(
+				'Files::CreateFile',
+				$aArgs,
+				$mResult
+			);
+
+			if ($mResult)
+			{
+				$mResult = \Aurora\Modules\Files\Module::Decorator()->GetFileInfo(\Aurora\System\Api::getAuthenticatedUserId(), $Type, $Path, $FileName);
+			}
+		}
+		return $mResult;
+	}
+
 	public function EntryCallback()
 	{
 		if (($body_stream = file_get_contents("php://input")) === FALSE)
@@ -371,6 +406,29 @@ class Module extends \Aurora\System\Module\AbstractModule
 							]
 						]);
 					}
+				}
+			}
+		}
+	}
+
+	public function onAfterGetFileInfo($aArgs, &$mResult)
+	{
+		if ($mResult)
+		{
+			if ($mResult instanceof \Aurora\Modules\Files\Classes\FileItem && $this->isOfficeDocument($mResult->Name))
+			{
+				if ((isset($mResult->ExtendedProps['Access']) && (int) $mResult->ExtendedProps['Access'] === \Afterlogic\DAV\FS\Permission::Write) || !isset($mResult->ExtendedProps['Access']) 
+					&& !$this->isReadOnlyDocument($mResult->Name))
+				{
+					$sHash = $mResult->getHash();
+					$aHashValues = \Aurora\System\Api::DecodeKeyValues($sHash);
+					$aHashValues['Edit'] = true;
+					$sHash = \Aurora\System\Api::EncodeKeyValues($aHashValues);
+					$mResult->UnshiftAction([
+						'edit' => [
+							'url' => '?download-file/' . $sHash .'/view'
+						]
+					]);
 				}
 			}
 		}
