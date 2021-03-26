@@ -5,8 +5,12 @@ module.exports = function (oAppData) {
 		_ = require('underscore'),
 
 		TextUtils = require('%PathToCoreWebclientModule%/js/utils/Text.js'),
+		Types = require('%PathToCoreWebclientModule%/js/utils/Types.js'),
+		UrlUtils = require('%PathToCoreWebclientModule%/js/utils/Url.js'),
 
 		App = require('%PathToCoreWebclientModule%/js/App.js'),
+
+		WindowOpener = require('%PathToCoreWebclientModule%/js/WindowOpener.js'),
 
 		CAbstractFileModel = require('%PathToCoreWebclientModule%/js/models/CAbstractFileModel.js')
 	;
@@ -39,7 +43,22 @@ module.exports = function (oAppData) {
 						{
 							oFile.actions.unshift('edit');
 							oFile.oActionsData['edit'].Text = TextUtils.i18n('%MODULENAME%/ACTION_EDIT_FILE');
-							oFile.oActionsData['edit'].HandlerName = 'viewFile';
+							oFile.oActionsData['edit'].Handler = function () {
+								var
+									oWin = null,
+									sUrl = UrlUtils.getAppPath() + this.getActionUrl('edit')
+								;
+
+								if (Types.isNonEmptyString(sUrl) && sUrl !== '#')
+								{
+									oWin = WindowOpener.open(sUrl, sUrl, false);
+
+									if (oWin)
+									{
+										oWin.focus();
+									}
+								}
+							}.bind(oFile);
 						}
 						if (oFile.hasAction('view'))
 						{
