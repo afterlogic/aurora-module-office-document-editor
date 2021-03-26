@@ -269,6 +269,12 @@ class Module extends \Aurora\System\Module\AbstractModule
 				]
 			];
 
+			$oJwt = new Classes\JwtManager($this->getConfig('Secret', ''));
+			if ($oJwt->isJwtEnabled())
+			{
+				$config['token'] = $oJwt->jwtEncode($config);
+			}
+
 			$sResult = \file_get_contents($this->GetPath().'/templates/Editor.html');
 
 			$iUserId = \Aurora\System\Api::getAuthenticatedUserId();
@@ -325,45 +331,77 @@ class Module extends \Aurora\System\Module\AbstractModule
 
 	public function EntryCallback()
 	{
+		$result = ["error" => 0];
+
 		if (($body_stream = file_get_contents("php://input")) === FALSE)
 		{
-			echo "Bad Request";
+			$result["error"] = "Bad Request";
 		}
-
-		$data = json_decode($body_stream, TRUE);
-//		\Aurora\System\Api::LogObject($data, \Aurora\System\Enums\LogLevel::Full, 'only-office-');
-		if ($data["status"] == 2)
+		else
 		{
-			$sHash = (string) \Aurora\System\Router::getItemByIndex(1, '');
-			if (!empty($sHash))
+			$data = json_decode($body_stream, TRUE);
+
+			$oJwt = new Classes\JwtManager($this->getConfig('Secret', ''));
+			if ($oJwt->isJwtEnabled())
 			{
-				$aHashValues = \Aurora\System\Api::DecodeKeyValues($sHash);
-
-				$aHashValues['UserId'];
-				$rData = \fopen($data["url"], "r");
-
-				$aArgs = [
-					'UserId' => (int) $aHashValues['UserId'],
-					'Type' => $aHashValues['Type'],
-					'Path' => $aHashValues['Path'],
-					'Name' => $aHashValues['Name'],
-					'Data' => $rData,
-					'Overwrite' => true,
-					'RangeType' => 0,
-					'Offset' => 0,
-					'ExtendedProps' => []
-				];
-				\Aurora\System\Api::skipCheckUserRole(true);
-				$this->broadcastEvent(
-					'Files::CreateFile',
-					$aArgs,
-					$mResult
-				);
-				\Aurora\System\Api::skipCheckUserRole(false);
+				$inHeader = false;
+				$token = "";
+				if (!empty($data["token"]))
+				{
+					$token = $oJwt->jwtDecode($data["token"]);
+				}
+				elseif (!empty($_SERVER['HTTP_AUTHORIZATION']))
+				{
+					$token = $oJwt->jwtDecode(substr($_SERVER['HTTP_AUTHORIZATION'], strlen("Bearer ")));
+					$inHeader = true;
+				}
+				else
+				{
+					$result["error"] = "Expected JWT";
+				}
+				if (empty($token))
+				{
+					$result["error"] = "Invalid JWT signature";
+				}
+				else
+				{
+					$data = json_decode($token, true);
+					if ($inHeader) $data = $data["payload"];
+				}
 			}
 
+			if ($data["status"] == 2)
+			{
+				$sHash = (string) \Aurora\System\Router::getItemByIndex(1, '');
+				if (!empty($sHash))
+				{
+					$aHashValues = \Aurora\System\Api::DecodeKeyValues($sHash);
+
+					$aHashValues['UserId'];
+					$rData = \fopen($data["url"], "r");
+
+					$aArgs = [
+						'UserId' => (int) $aHashValues['UserId'],
+						'Type' => $aHashValues['Type'],
+						'Path' => $aHashValues['Path'],
+						'Name' => $aHashValues['Name'],
+						'Data' => $rData,
+						'Overwrite' => true,
+						'RangeType' => 0,
+						'Offset' => 0,
+						'ExtendedProps' => []
+					];
+					\Aurora\System\Api::skipCheckUserRole(true);
+					$this->broadcastEvent(
+						'Files::CreateFile',
+						$aArgs,
+						$mResult
+					);
+					\Aurora\System\Api::skipCheckUserRole(false);
+				}
+			}
 		}
-		return "{\"error\":0}";
+		return json_encode($result);
 	}
 
 	/**
@@ -393,7 +431,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 			{
 				if ($oItem instanceof \Aurora\Modules\Files\Classes\FileItem && $this->isOfficeDocument($oItem->Name))
 				{
-					if ((isset($oItem->ExtendedProps['Access']) && (int) $oItem->ExtendedProps['Access'] === \Afterlogic\DAV\FS\Permission::Write) || !isset($oItem->ExtendedProps['Access']) 
+					if ((isset($oItem->ExtendedProps['Access']) && (int) $oItem->ExtendedProps['Access'] === \Afterlogic\DAV\FS\Permission::Write) || !isset($oItem->ExtendedProps['Access'])
 						&& !$this->isReadOnlyDocument($oItem->Name))
 					{
 						$sHash = $oItem->getHash();
@@ -417,7 +455,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 		{
 			if ($mResult instanceof \Aurora\Modules\Files\Classes\FileItem && $this->isOfficeDocument($mResult->Name))
 			{
-				if ((isset($mResult->ExtendedProps['Access']) && (int) $mResult->ExtendedProps['Access'] === \Afterlogic\DAV\FS\Permission::Write) || !isset($mResult->ExtendedProps['Access']) 
+				if ((isset($mResult->ExtendedProps['Access']) && (int) $mResult->ExtendedProps['Access'] === \Afterlogic\DAV\FS\Permission::Write) || !isset($mResult->ExtendedProps['Access'])
 					&& !$this->isReadOnlyDocument($mResult->Name))
 				{
 					$sHash = $mResult->getHash();

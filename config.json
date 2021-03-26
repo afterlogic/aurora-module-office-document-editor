@@ -14,5 +14,9 @@
 	"DocumentServerUrl": [
 		"",
 		"string"
+	],
+	"Secret": [
+		"",
+		"string"
 	]
 }
