@@ -303,7 +303,12 @@ class Module extends \Aurora\System\Module\AbstractModule
 		if (file_exists($sFilePath))
 		{
 			$rData = \fopen($sFilePath , "r");
-
+			$FileName = \Aurora\Modules\Files\Module::Decorator()->GetNonExistentFileName(
+				\Aurora\System\Api::getAuthenticatedUserId(),
+				$Type,
+				$Path,
+				$FileName
+			);
 			$aArgs = [
 				'UserId' => \Aurora\System\Api::getAuthenticatedUserId(),
 				'Type' => $Type,
