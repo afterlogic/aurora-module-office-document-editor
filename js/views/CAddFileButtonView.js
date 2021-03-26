@@ -8,7 +8,11 @@ var
 	TextUtils = require('%PathToCoreWebclientModule%/js/utils/Text.js'),
 
 	Ajax = require('%PathToCoreWebclientModule%/js/Ajax.js'),
+	Api = require('%PathToCoreWebclientModule%/js/Api.js'),
+	ModulesManager = require('%PathToCoreWebclientModule%/js/ModulesManager.js'),
 	Popups = require('%PathToCoreWebclientModule%/js/Popups.js'),
+
+	CFileModel = ModulesManager.run('FilesWebclient', 'getFileConstructor'),
 
 	CreateDocumentPopup = require('modules/%ModuleName%/js/popups/CreateDocumentPopup.js')
 ;
@@ -50,12 +54,30 @@ CAddFileButtonView.prototype.createDocumentWithName = function (sBlankName, sExt
 			'Type': this.storageType(),
 			'Path': this.currentPath(),
 			'FileName': sBlankName + '.' + sExtension
-		}, function (oResponse) {
-			console.log('oResponse', oResponse);
-		}, this);
+		}, this.onCreateBlankDocumentResponse, this);
 	}
 
 	return '';
+};
+
+CAddFileButtonView.prototype.onCreateBlankDocumentResponse = function (oResponse)
+{
+	if (oResponse && oResponse.Result)
+	{
+		var
+			oFile = new CFileModel(oResponse.Result)
+		;
+		if (oFile.path() === this.currentPath() && oFile.storageType() === this.storageType())
+		{
+			ModulesManager.run('FilesWebclient', 'addFileToCurrentFolder', [oFile]);
+		}
+		ModulesManager.run('FilesWebclient', 'refresh');
+		oFile.executeAction('edit');
+	}
+	else
+	{
+		Api.showErrorByCode(oResponse);
+	}
 };
 
 CAddFileButtonView.prototype.createSpreadSheet = function ()
