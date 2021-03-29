@@ -11,6 +11,7 @@ module.exports = function (oAppData) {
 
 		Ajax = require('%PathToCoreWebclientModule%/js/Ajax.js'),
 		App = require('%PathToCoreWebclientModule%/js/App.js'),
+		Screens = require('%PathToCoreWebclientModule%/js/Screens.js'),
 
 		WindowOpener = require('%PathToCoreWebclientModule%/js/WindowOpener.js'),
 
@@ -87,6 +88,7 @@ module.exports = function (oAppData) {
 									else
 									{
 										ModulesManager.run('FilesWebclient', 'refresh');
+										Screens.showReport(TextUtils.i18n('%MODULENAME%/REPORT_FILE_SAVED_SUCCESSFULLY'));
 									}
 								}, this);
 							}.bind(oFile);
