@@ -127,7 +127,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 
 						$sHash = \Aurora\System\Api::EncodeKeyValues($aValues);
 
-						$sViewerUrl = './?editor=' . urlencode($sEntry .'/' . $sHash . '/' . $sAction);
+						$sViewerUrl = './?editor=' . urlencode($sEntry .'/' . $sHash . '/' . $sAction . '/' . time());
 						\header('Location: ' . $sViewerUrl);
 					}
 					else
@@ -449,7 +449,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 						$sHash = \Aurora\System\Api::EncodeKeyValues($aHashValues);
 						$oItem->UnshiftAction([
 							'edit' => [
-								'url' => '?download-file/' . $sHash .'/view'
+								'url' => '?download-file/' . $sHash .'/view/' . time()
 							]
 						]);
 					}
@@ -473,7 +473,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 					$sHash = \Aurora\System\Api::EncodeKeyValues($aHashValues);
 					$mResult->UnshiftAction([
 						'edit' => [
-							'url' => '?download-file/' . $sHash .'/view'
+							'url' => '?download-file/' . $sHash .'/view/' . time()
 						]
 					]);
 				}
