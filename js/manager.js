@@ -47,26 +47,37 @@ module.exports = function (oAppData) {
 							oFile.actions.unshift('edit');
 							oFile.oActionsData['edit'].Text = TextUtils.i18n('%MODULENAME%/ACTION_EDIT_FILE');
 							oFile.oActionsData['edit'].Handler = function () {
-								var
-									oWin = null,
-									sUrl = UrlUtils.getAppPath() + this.getActionUrl('edit')
-								;
-
-								if (Types.isNonEmptyString(sUrl) && sUrl !== '#')
+								if (oFile._editor_oOpenedWindow && !oFile._editor_oOpenedWindow.closed)
 								{
-									oWin = WindowOpener.open(sUrl, sUrl, false);
-
-									if (oWin)
+									oFile._editor_oOpenedWindow.focus();
+								}
+								else if (this._editor_iCheckChangesTimer)
+								{
+									Screens.showReport(TextUtils.i18n('%MODULENAME%/REPORT_WAIT_UNTIL_FILE_SYNCED'));
+								}
+								else
+								{
+									var
+										oWin = null,
+										sUrl = UrlUtils.getAppPath() + this.getActionUrl('edit')
+									;
+									if (Types.isNonEmptyString(sUrl) && sUrl !== '#')
 									{
-										oWin.focus();
-										var iInterval = setInterval(function () {
-											if (oWin.closed)
-											{
-												oFile._editor_oMoment = moment();
-												oFile._editor_setCheckChangesTimer();
-												clearInterval(iInterval);
-											}
-										}, 500);
+										oWin = WindowOpener.open(sUrl, sUrl, false);
+										if (oWin)
+										{
+											oFile._editor_oOpenedWindow = oWin;
+											oWin.focus();
+											var iInterval = setInterval(function () {
+												if (oWin.closed)
+												{
+													oFile._editor_oOpenedWindow = false;
+													oFile._editor_oMoment = moment();
+													oFile._editor_setCheckChangesTimer();
+													clearInterval(iInterval);
+												}
+											}, 500);
+										}
 									}
 								}
 							}.bind(oFile);
@@ -75,6 +86,8 @@ module.exports = function (oAppData) {
 								this._editor_iCheckChangesTimer = setTimeout(this._editor_checkChanges, 1000);
 							}.bind(oFile);
 							oFile._editor_checkChanges = function () {
+								clearTimeout(this._editor_iCheckChangesTimer);
+								delete this._editor_iCheckChangesTimer;
 								Ajax.send('Files', 'GetFileInfo', {
 									'UserId': App.getUserId(),
 									'Type': this.storageType(),
@@ -88,7 +101,7 @@ module.exports = function (oAppData) {
 									else
 									{
 										ModulesManager.run('FilesWebclient', 'refresh');
-										Screens.showReport(TextUtils.i18n('%MODULENAME%/REPORT_FILE_SAVED_SUCCESSFULLY'));
+										Screens.showReport(TextUtils.i18n('%MODULENAME%/REPORT_FILE_SYNCED_SUCCESSFULLY'));
 									}
 								}, this);
 							}.bind(oFile);
