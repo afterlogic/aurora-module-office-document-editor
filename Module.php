@@ -110,34 +110,36 @@ class Module extends \Aurora\System\Module\AbstractModule
 			{
 				$sFileName = isset($aValues['Name']) ? urldecode($aValues['Name']) : '';
 			}
-
-			if ($this->isOfficeDocument($sFileName))
+			if ($sAction === 'view' && $this->isOfficeDocument($sFileName))
 			{
-				if (!isset($aValues['AuthToken']))
+				if ($this->isOfficeDocument($sFileName))
 				{
-					$aValues['AuthToken'] = \Aurora\System\Api::UserSession()->Set(
-						[
-							'token' => 'auth',
-							'id' => \Aurora\System\Api::getAuthenticatedUserId()
-						],
-						time(),
-						time() + 60 * 5 // 5 min
-					);
-
-					$sHash = \Aurora\System\Api::EncodeKeyValues($aValues);
-
-					$sViewerUrl = './?editor=' . urlencode($sEntry .'/' . $sHash . '/' . $sAction);
-					\header('Location: ' . $sViewerUrl);
-				}
-				else
-				{
-					$sAuthToken = isset($aValues['AuthToken']) ? $aValues['AuthToken'] : null;
-					if (isset($sAuthToken))
+					if (!isset($aValues['AuthToken']))
 					{
-						\Aurora\System\Api::setAuthToken($sAuthToken);
-						\Aurora\System\Api::setUserId(
-							\Aurora\System\Api::getAuthenticatedUserId($sAuthToken)
+						$aValues['AuthToken'] = \Aurora\System\Api::UserSession()->Set(
+							[
+								'token' => 'auth',
+								'id' => \Aurora\System\Api::getAuthenticatedUserId()
+							],
+							time(),
+							time() + 60 * 5 // 5 min
 						);
+
+						$sHash = \Aurora\System\Api::EncodeKeyValues($aValues);
+
+						$sViewerUrl = './?editor=' . urlencode($sEntry .'/' . $sHash . '/' . $sAction);
+						\header('Location: ' . $sViewerUrl);
+					}
+					else
+					{
+						$sAuthToken = isset($aValues['AuthToken']) ? $aValues['AuthToken'] : null;
+						if (isset($sAuthToken))
+						{
+							\Aurora\System\Api::setAuthToken($sAuthToken);
+							\Aurora\System\Api::setUserId(
+								\Aurora\System\Api::getAuthenticatedUserId($sAuthToken)
+							);
+						}
 					}
 				}
 			}
@@ -237,7 +239,8 @@ class Module extends \Aurora\System\Module\AbstractModule
 						"fillForms" => !$bIsReadOnlyMode,
 						"modifyFilter" => !$bIsReadOnlyMode,
 						"modifyContentControl" => !$bIsReadOnlyMode,
-						"review" => !$bIsReadOnlyMode
+						"review" => !$bIsReadOnlyMode,
+						"changeHistory" => !$bIsReadOnlyMode
 					]
 				],
 				"editorConfig" => [
