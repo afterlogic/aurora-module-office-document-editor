@@ -288,6 +288,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 					'{{CONFIG}}' => \json_encode($config)
 				]);
 				\Aurora\Modules\CoreWebclient\Module::Decorator()->SetHtmlOutputHeaders();
+				@header('Cache-Control: no-cache');
 			}
 			else
 			{
