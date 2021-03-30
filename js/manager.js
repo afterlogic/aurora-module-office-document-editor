@@ -51,7 +51,7 @@ module.exports = function (oAppData) {
 								{
 									oFile._editor_oOpenedWindow.focus();
 								}
-								else if (this._editor_iCheckChangesTimer)
+								else if (this._editor_bSyncStarted)
 								{
 									Screens.showReport(TextUtils.i18n('%MODULENAME%/REPORT_WAIT_UNTIL_FILE_SYNCED'));
 								}
@@ -71,7 +71,8 @@ module.exports = function (oAppData) {
 											var iInterval = setInterval(function () {
 												if (oWin.closed)
 												{
-													oFile._editor_oOpenedWindow = false;
+													oFile._editor_bSyncStarted = true;
+													oFile._editor_oOpenedWindow = null;
 													oFile._editor_oMoment = moment();
 													oFile._editor_setCheckChangesTimer();
 													clearInterval(iInterval);
@@ -100,6 +101,7 @@ module.exports = function (oAppData) {
 									}
 									else
 									{
+										oFile._editor_bSyncStarted = false;
 										ModulesManager.run('FilesWebclient', 'refresh');
 										Screens.showReport(TextUtils.i18n('%MODULENAME%/REPORT_FILE_SYNCED_SUCCESSFULLY'));
 									}
