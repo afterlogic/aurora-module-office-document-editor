@@ -26,14 +26,14 @@ module.exports = function (oAppData) {
 	{
 		_.each(oOpenedWindows, function (oData, sFullPath) {
 			var
-				oWin = oData['Win'],
-				oFile = oData['File']
+				oWin = oData['Win']
+				// oFile = oData['File']
 			;
 			if (oWin.closed)
 			{
 				oSyncStartedMoments[sFullPath] = moment();
 				delete oOpenedWindows[sFullPath];
-				oFile._editor_setCheckChangesTimer();
+				// oFile._editor_setCheckChangesTimer();
 			}
 		});
 		if (_.isEmpty(oOpenedWindows))
@@ -55,19 +55,19 @@ module.exports = function (oAppData) {
 		}, 500);
 	}
 
-	function isEditEnded(oFile, oResponseResult)
-	{
-		if (oFile.oExtendedProps.LastEdited && oResponseResult.ExtendedProps.LastEdited)
-		{
-			return oFile.oExtendedProps.LastEdited !== oResponseResult.ExtendedProps.LastEdited;
-		}
-		return oResponseResult.LastModified !== oFile.iLastModified;
-	}
-
-	function isSyncTimeNotExpired(sFullPath)
-	{
-		return oSyncStartedMoments[sFullPath] && moment().diff(oSyncStartedMoments[sFullPath]) < 20000;
-	}
+	// function isEditEnded(oFile, oResponseResult)
+	// {
+	// 	if (oFile.oExtendedProps.LastEdited && oResponseResult.ExtendedProps.LastEdited)
+	// 	{
+	// 		return oFile.oExtendedProps.LastEdited !== oResponseResult.ExtendedProps.LastEdited;
+	// 	}
+	// 	return oResponseResult.LastModified !== oFile.iLastModified;
+	// }
+	//
+	// function isSyncTimeNotExpired(sFullPath)
+	// {
+	// 	return oSyncStartedMoments[sFullPath] && moment().diff(oSyncStartedMoments[sFullPath]) < 20000;
+	// }
 
 	if (App.isUserNormalOrTenant())
 	{
@@ -103,14 +103,14 @@ module.exports = function (oAppData) {
 								{
 									oOpenedWindows[oFile.fullPath()].Win.focus();
 								}
-								else if (isSyncTimeNotExpired(oFile.fullPath()))
-								{
-									Screens.showReport(TextUtils.i18n('%MODULENAME%/REPORT_WAIT_UNTIL_FILE_SYNCED'));
-									if (!this._editor_iCheckChangesTimer)
-									{
-										oFile._editor_setCheckChangesTimer();
-									}
-								}
+								// else if (isSyncTimeNotExpired(oFile.fullPath()))
+								// {
+								// 	Screens.showReport(TextUtils.i18n('%MODULENAME%/REPORT_WAIT_UNTIL_FILE_SYNCED'));
+								// 	if (!this._editor_iCheckChangesTimer)
+								// 	{
+								// 		oFile._editor_setCheckChangesTimer();
+								// 	}
+								// }
 								else
 								{
 									var
@@ -128,35 +128,35 @@ module.exports = function (oAppData) {
 									}
 								}
 							}.bind(oFile);
-							oFile._editor_setCheckChangesTimer = function () {
-								clearTimeout(this._editor_iCheckChangesTimer);
-								this._editor_iCheckChangesTimer = setTimeout(this._editor_checkChanges, 1000);
-							}.bind(oFile);
-							oFile._editor_checkChanges = function () {
-								clearTimeout(this._editor_iCheckChangesTimer);
-								Ajax.send('Files', 'GetFileInfo', {
-									'UserId': App.getUserId(),
-									'Type': this.storageType(),
-									'Path': this.path(),
-									'Id': this.fileName()
-								}, function (oResponse) {
-									var bEditedEnded = isEditEnded(this, oResponse.Result);
-									if (!bEditedEnded && isSyncTimeNotExpired(this.fullPath()))
-									{
-										oFile._editor_setCheckChangesTimer();
-									}
-									else
-									{
-										delete this._editor_iCheckChangesTimer;
-										delete oSyncStartedMoments[this.fullPath()];
-										if (bEditedEnded)
-										{
-											ModulesManager.run('FilesWebclient', 'refresh');
-											Screens.showReport(TextUtils.i18n('%MODULENAME%/REPORT_FILE_SYNCED_SUCCESSFULLY'));
-										}
-									}
-								}, this);
-							}.bind(oFile);
+							// oFile._editor_setCheckChangesTimer = function () {
+							// 	clearTimeout(this._editor_iCheckChangesTimer);
+							// 	this._editor_iCheckChangesTimer = setTimeout(this._editor_checkChanges, 1000);
+							// }.bind(oFile);
+							// oFile._editor_checkChanges = function () {
+							// 	clearTimeout(this._editor_iCheckChangesTimer);
+							// 	Ajax.send('Files', 'GetFileInfo', {
+							// 		'UserId': App.getUserId(),
+							// 		'Type': this.storageType(),
+							// 		'Path': this.path(),
+							// 		'Id': this.fileName()
+							// 	}, function (oResponse) {
+							// 		var bEditedEnded = isEditEnded(this, oResponse.Result);
+							// 		if (!bEditedEnded && isSyncTimeNotExpired(this.fullPath()))
+							// 		{
+							// 			oFile._editor_setCheckChangesTimer();
+							// 		}
+							// 		else
+							// 		{
+							// 			delete this._editor_iCheckChangesTimer;
+							// 			delete oSyncStartedMoments[this.fullPath()];
+							// 			if (bEditedEnded)
+							// 			{
+							// 				ModulesManager.run('FilesWebclient', 'refresh');
+							// 				Screens.showReport(TextUtils.i18n('%MODULENAME%/REPORT_FILE_SYNCED_SUCCESSFULLY'));
+							// 			}
+							// 		}
+							// 	}, this);
+							// }.bind(oFile);
 						}
 						if (oFile.hasAction('view'))
 						{
