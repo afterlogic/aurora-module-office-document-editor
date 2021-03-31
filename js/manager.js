@@ -15,8 +15,59 @@ module.exports = function (oAppData) {
 
 		WindowOpener = require('%PathToCoreWebclientModule%/js/WindowOpener.js'),
 
-		CAbstractFileModel = require('%PathToCoreWebclientModule%/js/models/CAbstractFileModel.js')
+		CAbstractFileModel = require('%PathToCoreWebclientModule%/js/models/CAbstractFileModel.js'),
+
+		oOpenedWindows = {},
+		oSyncStartedMoments = {},
+		iCheckWindowsInterval = 0
 	;
+
+	function checkOpenedWindows()
+	{
+		_.each(oOpenedWindows, function (oData, sFullPath) {
+			var
+				oWin = oData['Win'],
+				oFile = oData['File']
+			;
+			if (oWin.closed)
+			{
+				oSyncStartedMoments[sFullPath] = moment();
+				delete oOpenedWindows[sFullPath];
+				oFile._editor_setCheckChangesTimer();
+			}
+		});
+		if (_.isEmpty(oOpenedWindows))
+		{
+			clearInterval(iCheckWindowsInterval);
+		}
+	}
+
+	function addOpenedWindow(oFile, oWin)
+	{
+		var sFullPath = oFile.fullPath();
+		oOpenedWindows[sFullPath] = {
+			'Win': oWin,
+			'File': oFile
+		};
+		clearInterval(iCheckWindowsInterval);
+		iCheckWindowsInterval = setInterval(function () {
+			checkOpenedWindows();
+		}, 500);
+	}
+
+	function isEditEnded(oFile, oResponseResult)
+	{
+		if (oFile.oExtendedProps.LastEdited && oResponseResult.ExtendedProps.LastEdited)
+		{
+			return oFile.oExtendedProps.LastEdited !== oResponseResult.ExtendedProps.LastEdited;
+		}
+		return oResponseResult.LastModified !== oFile.iLastModified;
+	}
+
+	function isSyncTimeNotExpired(sFullPath)
+	{
+		return oSyncStartedMoments[sFullPath] && moment().diff(oSyncStartedMoments[sFullPath]) < 20000;
+	}
 
 	if (App.isUserNormalOrTenant())
 	{
@@ -37,8 +88,9 @@ module.exports = function (oAppData) {
 				App.subscribeEvent('FilesWebclient::ParseFile::after', function (aParams) {
 					var
 						oFile = aParams[0],
-						oData = aParams[1]
+						oRawData = aParams[1]
 					;
+
 					if (oFile.hasAction('edit'))
 					{
 						oFile.removeAction('edit');
@@ -47,13 +99,17 @@ module.exports = function (oAppData) {
 							oFile.actions.unshift('edit');
 							oFile.oActionsData['edit'].Text = TextUtils.i18n('%MODULENAME%/ACTION_EDIT_FILE');
 							oFile.oActionsData['edit'].Handler = function () {
-								if (oFile._editor_oOpenedWindow && !oFile._editor_oOpenedWindow.closed)
+								if (oOpenedWindows[oFile.fullPath()] && !oOpenedWindows[oFile.fullPath()].Win.closed)
 								{
-									oFile._editor_oOpenedWindow.focus();
+									oOpenedWindows[oFile.fullPath()].Win.focus();
 								}
-								else if (this._editor_bSyncStarted)
+								else if (isSyncTimeNotExpired(oFile.fullPath()))
 								{
 									Screens.showReport(TextUtils.i18n('%MODULENAME%/REPORT_WAIT_UNTIL_FILE_SYNCED'));
+									if (!this._editor_iCheckChangesTimer)
+									{
+										oFile._editor_setCheckChangesTimer();
+									}
 								}
 								else
 								{
@@ -66,18 +122,8 @@ module.exports = function (oAppData) {
 										oWin = WindowOpener.open(sUrl, sUrl, false);
 										if (oWin)
 										{
-											oFile._editor_oOpenedWindow = oWin;
+											addOpenedWindow(oFile, oWin)
 											oWin.focus();
-											var iInterval = setInterval(function () {
-												if (oWin.closed)
-												{
-													oFile._editor_bSyncStarted = true;
-													oFile._editor_oOpenedWindow = null;
-													oFile._editor_oMoment = moment();
-													oFile._editor_setCheckChangesTimer();
-													clearInterval(iInterval);
-												}
-											}, 500);
 										}
 									}
 								}
@@ -88,22 +134,26 @@ module.exports = function (oAppData) {
 							}.bind(oFile);
 							oFile._editor_checkChanges = function () {
 								clearTimeout(this._editor_iCheckChangesTimer);
-								delete this._editor_iCheckChangesTimer;
 								Ajax.send('Files', 'GetFileInfo', {
 									'UserId': App.getUserId(),
 									'Type': this.storageType(),
 									'Path': this.path(),
 									'Id': this.fileName()
 								}, function (oResponse) {
-									if (oResponse.Result.LastModified === this.iLastModified && moment().diff(oFile._editor_oMoment) < 20000)
+									var bEditedEnded = isEditEnded(this, oResponse.Result);
+									if (!bEditedEnded && isSyncTimeNotExpired(this.fullPath()))
 									{
 										oFile._editor_setCheckChangesTimer();
 									}
 									else
 									{
-										oFile._editor_bSyncStarted = false;
-										ModulesManager.run('FilesWebclient', 'refresh');
-										Screens.showReport(TextUtils.i18n('%MODULENAME%/REPORT_FILE_SYNCED_SUCCESSFULLY'));
+										delete this._editor_iCheckChangesTimer;
+										delete oSyncStartedMoments[this.fullPath()];
+										if (bEditedEnded)
+										{
+											ModulesManager.run('FilesWebclient', 'refresh');
+											Screens.showReport(TextUtils.i18n('%MODULENAME%/REPORT_FILE_SYNCED_SUCCESSFULLY'));
+										}
 									}
 								}, this);
 							}.bind(oFile);
