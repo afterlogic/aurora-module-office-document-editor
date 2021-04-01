@@ -185,13 +185,17 @@ class Module extends \Aurora\System\Module\AbstractModule
 			}
 
 			$sHash = \Aurora\System\Api::EncodeKeyValues($aHashValues);
-
-			$oFileInfo = \Aurora\Modules\Files\Module::Decorator()->GetFileInfo(
-				$aHashValues['UserId'],
-				$aHashValues['Type'],
-				$aHashValues['Path'],
-				$aHashValues['Id']
-			);
+			$oFileInfo = null;
+			try
+			{
+				$oFileInfo = \Aurora\Modules\Files\Module::Decorator()->GetFileInfo(
+					$aHashValues['UserId'],
+					$aHashValues['Type'],
+					$aHashValues['Path'],
+					$aHashValues['Id']
+				);
+			}
+			catch (\Exception $oEx) {}
 			if ($oFileInfo)
 			{
 				$lastModified = $oFileInfo->LastModified;
@@ -386,27 +390,43 @@ class Module extends \Aurora\System\Module\AbstractModule
 				{
 					$aHashValues = \Aurora\System\Api::DecodeKeyValues($sHash);
 
-					$aHashValues['UserId'];
-					$rData = \fopen($data["url"], "r");
-
-					$aArgs = [
-						'UserId' => (int) $aHashValues['UserId'],
-						'Type' => $aHashValues['Type'],
-						'Path' => $aHashValues['Path'],
-						'Name' => $aHashValues['Name'],
-						'Data' => $rData,
-						'Overwrite' => true,
-						'RangeType' => 0,
-						'Offset' => 0,
-						'ExtendedProps' => []
-					];
 					\Aurora\System\Api::skipCheckUserRole(true);
-					$this->broadcastEvent(
-						'Files::CreateFile',
-						$aArgs,
-						$mResult
+					$oFileInfo = \Aurora\Modules\Files\Module::Decorator()->GetFileInfo(
+						$aHashValues['UserId'],
+						$aHashValues['Type'],
+						$aHashValues['Path'],
+						$aHashValues['Name']
 					);
 					\Aurora\System\Api::skipCheckUserRole(false);
+					if ($oFileInfo instanceof \Aurora\Modules\Files\Classes\FileItem && $this->isOfficeDocument($oFileInfo->Name))
+					{
+						if ((isset($oFileInfo->ExtendedProps['Access']) && (int) $oFileInfo->ExtendedProps['Access'] === \Afterlogic\DAV\FS\Permission::Write) || !isset($oFileInfo->ExtendedProps['Access'])
+							&& !$this->isReadOnlyDocument($oFileInfo->Name))
+						{
+							$rData = \fopen($data["url"], "r");
+							if ($rData !== false)
+							{
+								$aArgs = [
+									'UserId' => (int) $aHashValues['UserId'],
+									'Type' => $aHashValues['Type'],
+									'Path' => $aHashValues['Path'],
+									'Name' => $aHashValues['Name'],
+									'Data' => $rData,
+									'Overwrite' => true,
+									'RangeType' => 0,
+									'Offset' => 0,
+									'ExtendedProps' => []
+								];
+								\Aurora\System\Api::skipCheckUserRole(true);
+								$this->broadcastEvent(
+									'Files::CreateFile',
+									$aArgs,
+									$mResult
+								);
+								\Aurora\System\Api::skipCheckUserRole(false);
+							}
+						}
+					}
 				}
 			}
 		}
