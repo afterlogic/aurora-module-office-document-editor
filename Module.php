@@ -41,6 +41,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 		$this->subscribeEvent('Files::GetFile', [$this, 'onGetFile'], 10);
 		$this->subscribeEvent('Files::GetItems::after', array($this, 'onAfterGetItems'), 20000);
 		$this->subscribeEvent('Files::GetFileInfo::after', array($this, 'onAfterGetFileInfo'), 20000);
+		$this->subscribeEvent('AddToContentSecurityPolicyDefault', array($this, 'onAddToContentSecurityPolicyDefault'));
 	}
 
 	public function GetSettings()
@@ -498,6 +499,15 @@ class Module extends \Aurora\System\Module\AbstractModule
 					]);
 				}
 			}
+		}
+	}
+
+	public function onAddToContentSecurityPolicyDefault($aArgs, &$aAddDefault)
+	{
+		$sUrl = $this->getConfig('DocumentServerUrl' , null);
+		if (!empty($sUrl))
+		{
+			$aAddDefault[] = $sUrl;
 		}
 	}
 }
