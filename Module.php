@@ -472,7 +472,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 						$sHash = \Aurora\System\Api::EncodeKeyValues($aHashValues);
 						$oItem->UnshiftAction([
 							'edit' => [
-								'url' => '?download-file/' . $sHash .'/view/' . time()
+								'url' => '?download-file/' . $sHash .'/view'
 							]
 						]);
 					}
@@ -496,7 +496,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 					$sHash = \Aurora\System\Api::EncodeKeyValues($aHashValues);
 					$mResult->UnshiftAction([
 						'edit' => [
-							'url' => '?download-file/' . $sHash .'/view/' . time()
+							'url' => '?download-file/' . $sHash .'/view'
 						]
 					]);
 				}
