@@ -115,7 +115,7 @@ module.exports = function (oAppData) {
 								{
 									var
 										oWin = null,
-										sUrl = UrlUtils.getAppPath() + this.getActionUrl('edit')
+										sUrl = UrlUtils.getAppPath() + this.getActionUrl('edit') + '/' + moment().unix()
 									;
 									if (Types.isNonEmptyString(sUrl) && sUrl !== '#')
 									{
