@@ -3,6 +3,7 @@
 module.exports = function (oAppData) {
 	var
 		_ = require('underscore'),
+		$ = require('jquery'),
 		moment = require('moment'),
 
 		TextUtils = require('%PathToCoreWebclientModule%/js/utils/Text.js'),
@@ -91,6 +92,24 @@ module.exports = function (oAppData) {
 						oRawData = aParams[1]
 					;
 
+					if (oFile.hasAction('view') && oFile.oActionsData['view'] && -1 !== $.inArray(oFile.extension(), aExtensionsToView))
+					{
+						delete oFile.oActionsData['view'].HandlerName;
+						oFile.oActionsData['view'].Handler = function () {
+							var
+								oWin = null,
+								sUrl = UrlUtils.getAppPath() + this.getActionUrl('view') + '/' + moment().unix()
+							;
+							if (Types.isNonEmptyString(sUrl) && sUrl !== '#')
+							{
+								oWin = WindowOpener.open(sUrl, sUrl, false);
+								if (oWin)
+								{
+									oWin.focus();
+								}
+							}
+						}.bind(oFile);
+					}
 					if (oFile.hasAction('edit'))
 					{
 						oFile.removeAction('edit');
