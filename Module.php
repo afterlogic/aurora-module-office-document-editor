@@ -345,6 +345,191 @@ class Module extends \Aurora\System\Module\AbstractModule
 		return $mResult;
 	}
 
+	public function ConvertDocument($Type, $Path, $FileName, $ToExtension)
+	{
+		$oFileInfo = \Aurora\Modules\Files\Module::Decorator()->GetFileInfo(\Aurora\System\Api::getAuthenticatedUserId(), $Type, $Path, $FileName);
+		if ($oFileInfo instanceof  \Aurora\Modules\Files\Classes\FileItem)
+		{
+			$sConvertedDocumentUri = null;
+			$aPathParts = pathinfo($FileName);
+			$sFromExtension = $aPathParts['extension'];
+			$sDocumentUri = '';
+
+			if (isset($oFileInfo->Actions['download']['url']))
+			{
+				$sDownloadUrl = $oFileInfo->Actions['download']['url'];
+				$aUrlParts = \explode('/', $sDownloadUrl);
+				if (isset($aUrlParts[1]))
+				{
+					$aUrlParts[1] = $this->GetFileTempHash($aUrlParts[1]);
+					$sDocumentUri = $this->oHttp->GetFullUrl() . \implode('/', $aUrlParts);
+					$this->GetConvertedUri($sDocumentUri, $sFromExtension, $ToExtension, '', false, $sConvertedDocumentUri);
+				}
+			}
+		}
+	}
+
+	protected function GetFileTempHash($sHash)
+	{
+		$aValues = \Aurora\System\Api::DecodeKeyValues($sHash);
+
+		$sFileName = isset($aValues['FileName']) ? urldecode($aValues['FileName']) : '';
+		if (empty($sFileName))
+		{
+			$sFileName = isset($aValues['Name']) ? urldecode($aValues['Name']) : '';
+		}
+		$aValues['AuthToken'] = \Aurora\System\Api::UserSession()->Set(
+			[
+				'token' => 'auth',
+				'id' => \Aurora\System\Api::getAuthenticatedUserId()
+			],
+			time(),
+			time() + 60 * 5 // 5 min
+		);
+
+		return \Aurora\System\Api::EncodeKeyValues($aValues);
+	}
+
+	protected function GetConvertedUri($document_uri, $from_extension, $to_extension, $document_revision_id, $is_async, &$converted_document_uri)
+	{
+		$converted_document_uri = "";
+		$responceFromConvertService = $this->SendRequestToConvertService($document_uri, $from_extension, $to_extension, $document_revision_id, $is_async);
+		$json = json_decode($responceFromConvertService, true);
+
+		$errorElement = $json["error"];
+		if ($errorElement != NULL && $errorElement != "")
+		{
+			$this->ProcessConvServResponceError($errorElement);
+		}
+
+		$isEndConvert = $json["endConvert"];
+		$percent = $json["percent"];
+
+		if ($isEndConvert != NULL && $isEndConvert == true)
+		{
+			$converted_document_uri = $json["fileUrl"];
+			$percent = 100;
+		}
+		else if ($percent >= 100)
+		{
+			$percent = 99;
+		}
+
+		return $percent;
+	}
+
+	protected function SendRequestToConvertService($document_uri, $from_extension, $to_extension, $document_revision_id, $is_async)
+	{
+		$title = basename($document_uri);
+		if (empty($title))
+		{
+			$title = \Sabre\DAV\UUIDUtil::getUUID();
+		}
+
+		if (empty($document_revision_id))
+		{
+			$document_revision_id = $document_uri;
+		}
+
+		$document_revision_id = $this->GenerateRevisionId($document_revision_id);
+
+		$serverPath = $this->getConfig('DocumentServerUrl' , null);
+		if ($serverPath !== null)
+		{
+			$urlToConverter = $serverPath . '/ConvertService.ashx';
+		}
+
+		$arr = [
+			"async" => $is_async,
+			"url" => $document_uri,
+			"outputtype" => trim($to_extension,'.'),
+			"filetype" => trim($from_extension, '.'),
+			"title" => $title,
+			"key" => $document_revision_id
+		];
+
+		$headerToken = "";
+
+		$oJwt = new Classes\JwtManager($this->getConfig('Secret', ''));
+		if ($oJwt->isJwtEnabled())
+		{
+			$headerToken = $oJwt->jwtEncode([ "payload" => $arr ]);
+			$arr["token"] = $oJwt->jwtEncode($arr);
+		}
+
+		$data = json_encode($arr);
+
+		$opts = [
+			'http' => [
+				'method'  => 'POST',
+				'timeout' => '120000',
+				'header'=> 	"Content-type: application/json\r\n" .
+							"Accept: application/json\r\n" .
+							(empty($headerToken) ? "" : "Authorization: $headerToken\r\n"),
+				'content' => $data
+			]
+		];
+
+		if (substr($urlToConverter, 0, strlen("https")) === "https")
+		{
+			$opts['ssl'] = array( 'verify_peer'   => FALSE );
+		}
+
+		$context  = stream_context_create($opts);
+		$response_data = file_get_contents($urlToConverter, FALSE, $context);
+
+		return $response_data;
+	}
+
+	protected function ProcessConvServResponceError($errorCode)
+	{
+		$errorMessageTemplate = "Error occurred in the document service: ";
+		$errorMessage = '';
+
+		switch ($errorCode)
+		{
+			case -8:
+				$errorMessage = $errorMessageTemplate . "Error document VKey";
+				break;
+			case -7:
+				$errorMessage = $errorMessageTemplate . "Error document request";
+				break;
+			case -6:
+				$errorMessage = $errorMessageTemplate . "Error database";
+				break;
+			case -5:
+				$errorMessage = $errorMessageTemplate . "Error unexpected guid";
+				break;
+			case -4:
+				$errorMessage = $errorMessageTemplate . "Error download error";
+				break;
+			case -3:
+				$errorMessage = $errorMessageTemplate . "Error convertation error";
+				break;
+			case -2:
+				$errorMessage = $errorMessageTemplate . "Error convertation timeout";
+				break;
+			case -1:
+				$errorMessage = $errorMessageTemplate . "Error convertation unknown";
+				break;
+			case 0:
+				break;
+			default:
+				$errorMessage = $errorMessageTemplate . "ErrorCode = " . $errorCode;
+				break;
+		}
+
+		throw new \Exception($errorMessage);
+	}
+
+	protected function GenerateRevisionId($expected_key)
+	{
+		if (strlen($expected_key) > 20) $expected_key = crc32( $expected_key);
+		$key = preg_replace("[^0-9-.a-zA-Z_=]", "_", $expected_key);
+		$key = substr($key, 0, min(array(strlen($key), 20)));
+		return $key;
+	}
+
 	public function EntryCallback()
 	{
 		$result = ["error" => 0];

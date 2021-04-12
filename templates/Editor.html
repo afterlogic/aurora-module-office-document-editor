@@ -56,6 +56,9 @@
 
         var onAppReady = function () {
             innerAlert("Document editor ready");
+            // console.log(document.getElementByName('frameEditor').contentWindow.document.getElementById('id_target_cursor'));
+
+            // document.getElementByName('frameEditor').contentWindow.document.getElementById('id_target_cursor').style.display = 'none';
         };
 
         var onDocumentStateChange = function (event) {
