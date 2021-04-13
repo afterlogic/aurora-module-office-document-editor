@@ -23,7 +23,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 
 	public $ExtsDocument = [".doc", ".docx", ".docm", ".dot", ".dotx", ".dotm", ".odt", ".fodt", ".ott", ".rtf", ".txt", ".html", ".htm", ".mht", ".pdf", ".djvu", ".fb2", ".epub", ".xps"];
 
-	public $ExtsReadOnly = [".xls", ".pps", ".doc", ".odt"];
+	public $ExtsReadOnly = [".xls", ".pps", ".doc", ".odt", ".pdf"];
 
 	/**
 	 * Initializes module.
@@ -346,13 +346,15 @@ class Module extends \Aurora\System\Module\AbstractModule
 	}
 
 	public function ConvertDocument($Type, $Path, $FileName, $ToExtension)
-	{
+	{	
+		$mResult = false;
 		$oFileInfo = \Aurora\Modules\Files\Module::Decorator()->GetFileInfo(\Aurora\System\Api::getAuthenticatedUserId(), $Type, $Path, $FileName);
 		if ($oFileInfo instanceof  \Aurora\Modules\Files\Classes\FileItem)
 		{
 			$sConvertedDocumentUri = null;
 			$aPathParts = pathinfo($FileName);
 			$sFromExtension = $aPathParts['extension'];
+			$sFileNameWOExt = $aPathParts['filename'];
 			$sDocumentUri = '';
 
 			if (isset($oFileInfo->Actions['download']['url']))
@@ -364,9 +366,47 @@ class Module extends \Aurora\System\Module\AbstractModule
 					$aUrlParts[1] = $this->GetFileTempHash($aUrlParts[1]);
 					$sDocumentUri = $this->oHttp->GetFullUrl() . \implode('/', $aUrlParts);
 					$this->GetConvertedUri($sDocumentUri, $sFromExtension, $ToExtension, '', false, $sConvertedDocumentUri);
+					if (!empty($sConvertedDocumentUri))
+					{
+						$rData = \fopen($sConvertedDocumentUri, "r");
+						if ($rData !== false)
+						{
+							$sNewFileName = \Aurora\Modules\Files\Module::Decorator()->GetNonExistentFileName(
+								\Aurora\System\Api::getAuthenticatedUserId(),
+								$Type,
+								$Path,
+								$sFileNameWOExt . '.' . $ToExtension
+							);						
+							$aArgs = [
+								'UserId' => \Aurora\System\Api::getAuthenticatedUserId(),
+								'Type' => $Type,
+								'Path' => $Path,
+								'Name' => $sNewFileName,
+								'Data' => $rData,
+								'Overwrite' => false,
+								'RangeType' => 0,
+								'Offset' => 0,
+								'ExtendedProps' => []
+							];
+
+							$this->broadcastEvent(
+								'Files::CreateFile',
+								$aArgs,
+								$mResult
+							);
+							if ($mResult)
+							{
+								$mResult = \Aurora\Modules\Files\Module::Decorator()->GetFileInfo(\Aurora\System\Api::getAuthenticatedUserId(), $Type, $Path, $sNewFileName);
+							}
+
+						}
+
+					}
 				}
 			}
 		}
+
+		return $mResult;
 	}
 
 	protected function GetFileTempHash($sHash)
