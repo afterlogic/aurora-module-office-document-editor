@@ -18,12 +18,9 @@ class Module extends \Aurora\System\Module\AbstractModule
 {
 
 	public $ExtsSpreadsheet = [".xls", ".xlsx", ".xlsm", ".xlt", ".xltx", ".xltm", ".ods", ".fods", ".ots", ".csv"];
-
 	public $ExtsPresentation = [".pps", ".ppsx", ".ppsm", ".ppt", ".pptx", ".pptm", ".pot", ".potx", ".potm", ".odp", ".fodp", ".otp"];
-
 	public $ExtsDocument = [".doc", ".docx", ".docm", ".dot", ".dotx", ".dotm", ".odt", ".fodt", ".ott", ".rtf", ".txt", ".html", ".htm", ".mht", ".pdf", ".djvu", ".fb2", ".epub", ".xps"];
 
-	public $ExtsReadOnly = [".xls", ".pps", ".doc", ".odt", ".pdf"];
 
 	/**
 	 * Initializes module.
@@ -55,8 +52,20 @@ class Module extends \Aurora\System\Module\AbstractModule
 
 	protected function getExtensionsToView()
 	{
-		$aExtensions = array_merge($this->ExtsSpreadsheet, $this->ExtsPresentation, $this->ExtsDocument);
-		return $this->getConfig('ExtensionsToView', $aExtensions);
+		return $this->getConfig('ExtensionsToView', []);
+	}
+
+	protected function getExtensionsToEdit()
+	{
+		return $this->getConfig('ExtensionsToEdit', []);
+	}
+
+	protected function getOfficeExtensions()
+	{
+		return array_merge(
+			$this->getExtensionsToView(),
+			$this->getExtensionsToEdit()
+		);
 	}
 
 	protected function getDocumentType($filename)
@@ -71,9 +80,9 @@ class Module extends \Aurora\System\Module\AbstractModule
 
 	protected function isReadOnlyDocument($filename)
 	{
-		$ext = strtolower('.' . pathinfo($filename, PATHINFO_EXTENSION));
+		$ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
 
-		return in_array($ext, $this->ExtsReadOnly);
+		return in_array($ext, $this->getExtensionsToView());
 	}
 
 	/**
@@ -82,7 +91,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 	 */
 	protected function isOfficeDocument($sFileName = '')
 	{
-		$sExtensions = implode('|', $this->getExtensionsToView());
+		$sExtensions = implode('|', $this->getOfficeExtensions());
 		return !!preg_match('/\.(' . $sExtensions . ')$/', strtolower(trim($sFileName)));
 	}
 
