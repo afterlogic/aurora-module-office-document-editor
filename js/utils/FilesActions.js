@@ -91,17 +91,25 @@ FilesActions.edit = function () {
 	}
 };
 
-function convertFile () {
+function convertFile (fClosePopup, koConvertInProgress) {
 	Ajax.send('%ModuleName%', 'ConvertDocument', {
 		'Type': this.storageType(),
 		'Path': this.path(),
 		'FileName': this.fileName()
 	}, function (oResponse) {
+		if (_.isFunction(koConvertInProgress))
+		{
+			koConvertInProgress(false);
+		}
 		if (oResponse && oResponse.Result)
 		{
 			var oFile = new CFileModel(oResponse.Result);
 			ModulesManager.run('FilesWebclient', 'refresh');
 			oFile.executeAction('edit');
+			if (_.isFunction(fClosePopup))
+			{
+				fClosePopup();
+			}
 		}
 		else
 		{

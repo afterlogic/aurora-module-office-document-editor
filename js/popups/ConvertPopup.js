@@ -2,6 +2,7 @@
 
 var
 	_ = require('underscore'),
+	ko = require('knockout'),
 
 	CAbstractPopup = require('%PathToCoreWebclientModule%/js/popups/CAbstractPopup.js')
 ;
@@ -12,6 +13,8 @@ var
 function CConvertPopup()
 {
 	CAbstractPopup.call(this);
+
+	this.convertInProgress = ko.observable(false);
 
 	this.fConvertCallback = null;
 	this.fViewCallback = null;
@@ -27,6 +30,8 @@ CConvertPopup.prototype.PopupTemplate = '%ModuleName%_ConvertPopup';
  */
 CConvertPopup.prototype.onOpen = function (fConvertCallback, fViewCallback)
 {
+	this.convertInProgress(false);
+
 	this.fConvertCallback = fConvertCallback;
 	this.fViewCallback = fViewCallback;
 };
@@ -35,10 +40,9 @@ CConvertPopup.prototype.convert = function ()
 {
 	if (_.isFunction(this.fConvertCallback))
 	{
-		this.fConvertCallback();
+		this.convertInProgress(true);
+		this.fConvertCallback(this.closePopup.bind(this), this.convertInProgress);
 	}
-
-	this.closePopup();
 };
 
 CConvertPopup.prototype.view = function ()

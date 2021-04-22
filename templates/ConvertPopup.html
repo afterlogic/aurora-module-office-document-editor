@@ -6,7 +6,8 @@
 		<span class="text" data-bind="i18n: {'key': '%MODULENAME%/CONFIRM_CONVERT'}"></span>
 		<span class="text" style="margin-top: 8px;" data-bind="i18n: {'key': '%MODULENAME%/HINT_CONVERT'}"></span>
 		<div class="buttons">
-			<span class="button" data-bind="i18n: {'key': '%MODULENAME%/ACTION_CONVERT_FILE'}, click: convert"></span>
+			<span class="button" data-bind="i18n: {'key': '%MODULENAME%/ACTION_CONVERT_FILE'}, click: convert, visible: !convertInProgress()"></span>
+			<span class="button" data-bind="i18n: {'key': '%MODULENAME%/ACTION_CONVERT_FILE_IN_PROGRESS'}, visible: convertInProgress"></span>
 			<span class="button" data-bind="i18n: {'key': '%MODULENAME%/ACTION_VIEW_FILE'}, click: view"></span>
 			<span class="button secondary_button" data-bind="i18n: {'key': 'COREWEBCLIENT/ACTION_CANCEL'}, click: cancelPopup"></span>
 		</div>
