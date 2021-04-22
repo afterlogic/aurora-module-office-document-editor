@@ -10,7 +10,7 @@ namespace Aurora\Modules\OfficeDocumentEditor;
 /**
  * @license https://www.gnu.org/licenses/agpl-3.0.html AGPL-3.0
  * @license https://afterlogic.com/products/common-licensing Afterlogic Software License
- * @copyright Copyright (c) 2019, Afterlogic Corp.
+ * @copyright Copyright (c) 2021, Afterlogic Corp.
  *
  * @package Modules
  */
@@ -29,6 +29,10 @@ class Module extends \Aurora\System\Module\AbstractModule
 	 */
 	public function init()
 	{
+		$this->aErrors = [
+			Enums\ErrorCodes::ExtensionCannotBeConverted => $this->i18N('ERROR_EXTENSION_CANNOT_BE_CONVERTED')
+		];
+
 		$this->AddEntries([
 			'editor' => 'EntryEditor',
 			'ode-callback' => 'EntryCallback'
@@ -53,6 +57,11 @@ class Module extends \Aurora\System\Module\AbstractModule
 	protected function getExtensionsToView()
 	{
 		return $this->getConfig('ExtensionsToView', []);
+	}
+
+	protected function getExtensionsToConvert()
+	{
+		return $this->getConfig('ExtensionsToConvert', []);
 	}
 
 	protected function getExtensionsToEdit()
@@ -83,6 +92,13 @@ class Module extends \Aurora\System\Module\AbstractModule
 		$ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
 
 		return in_array($ext, $this->getExtensionsToView());
+	}
+
+	protected function documentCanBeConverted($sFilename)
+	{
+		$ext = strtolower(pathinfo($sFilename, PATHINFO_EXTENSION));
+
+		return in_array($ext, $this->getExtensionsToConvert());
 	}
 
 	/**
@@ -354,8 +370,28 @@ class Module extends \Aurora\System\Module\AbstractModule
 		return $mResult;
 	}
 
-	public function ConvertDocument($Type, $Path, $FileName, $ToExtension)
-	{	
+	public function ConvertDocument($Type, $Path, $FileName)
+	{
+		$aExtensions = [
+			'xls' => 'xlsx',
+			'pps' => 'ppsx',
+			'doc' => 'docx',
+			'odt' => 'docx',
+		];
+		$sExtension = pathinfo($FileName, PATHINFO_EXTENSION);
+		$sNewExtension = isset($aExtensions[$sExtension]) ? $aExtensions[$sExtension] : null;
+		if ($sNewExtension === null)
+		{
+			throw new \Aurora\Modules\OfficeDocumentEditor\Exceptions\Exception(Enums\ErrorCodes::ExtensionCannotBeConverted);
+		}
+		else
+		{
+			self::Decorator()->ConvertDocumentToFormat($Type, $Path, $FileName, $sNewExtension);
+		}
+	}
+
+	public function ConvertDocumentToFormat($Type, $Path, $FileName, $ToExtension)
+	{
 		$mResult = false;
 		$oFileInfo = \Aurora\Modules\Files\Module::Decorator()->GetFileInfo(\Aurora\System\Api::getAuthenticatedUserId(), $Type, $Path, $FileName);
 		if ($oFileInfo instanceof  \Aurora\Modules\Files\Classes\FileItem)
@@ -385,7 +421,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 								$Type,
 								$Path,
 								$sFileNameWOExt . '.' . $ToExtension
-							);						
+							);
 							$aArgs = [
 								'UserId' => \Aurora\System\Api::getAuthenticatedUserId(),
 								'Type' => $Type,
@@ -697,18 +733,33 @@ class Module extends \Aurora\System\Module\AbstractModule
 			{
 				if ($oItem instanceof \Aurora\Modules\Files\Classes\FileItem && $this->isOfficeDocument($oItem->Name))
 				{
-					if ((isset($oItem->ExtendedProps['Access']) && (int) $oItem->ExtendedProps['Access'] === \Afterlogic\DAV\FS\Permission::Write) || !isset($oItem->ExtendedProps['Access'])
-						&& !$this->isReadOnlyDocument($oItem->Name))
+					$bAccessSet = isset($oItem->ExtendedProps['Access']);
+					$bHasWriteAccess = !$bAccessSet || ($bAccessSet && (int) $oItem->ExtendedProps['Access'] === \Afterlogic\DAV\FS\Permission::Write);
+					if ($bHasWriteAccess)
 					{
-						$sHash = $oItem->getHash();
-						$aHashValues = \Aurora\System\Api::DecodeKeyValues($sHash);
-						$aHashValues['Edit'] = true;
-						$sHash = \Aurora\System\Api::EncodeKeyValues($aHashValues);
-						$oItem->UnshiftAction([
-							'edit' => [
-								'url' => '?download-file/' . $sHash .'/view'
-							]
-						]);
+						if ($this->isReadOnlyDocument($oItem->Name))
+						{
+							if ($this->documentCanBeConverted($oItem->Name))
+							{
+								$oItem->UnshiftAction([
+									'convert' => [
+										'url' => ''
+									]
+								]);
+							}
+						}
+						else
+						{
+							$sHash = $oItem->getHash();
+							$aHashValues = \Aurora\System\Api::DecodeKeyValues($sHash);
+							$aHashValues['Edit'] = true;
+							$sHash = \Aurora\System\Api::EncodeKeyValues($aHashValues);
+							$oItem->UnshiftAction([
+								'edit' => [
+									'url' => '?download-file/' . $sHash .'/view'
+								]
+							]);
+						}
 					}
 				}
 			}

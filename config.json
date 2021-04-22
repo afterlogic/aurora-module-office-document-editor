@@ -7,8 +7,12 @@
 		true,
 		"bool"
 	],
-    "ExtensionsToView": [
+	"ExtensionsToView": [
 		["xls", "pps", "doc", "odt", "pdf"],
+		"array"
+	],
+	"ExtensionsToConvert": [
+		["xls", "pps", "doc", "odt"],
 		"array"
 	],
 	"ExtensionsToEdit": [

@@ -4,71 +4,15 @@ module.exports = function (oAppData) {
 	var
 		_ = require('underscore'),
 		$ = require('jquery'),
-		moment = require('moment'),
 
 		TextUtils = require('%PathToCoreWebclientModule%/js/utils/Text.js'),
-		Types = require('%PathToCoreWebclientModule%/js/utils/Types.js'),
-		UrlUtils = require('%PathToCoreWebclientModule%/js/utils/Url.js'),
 
-		Ajax = require('%PathToCoreWebclientModule%/js/Ajax.js'),
 		App = require('%PathToCoreWebclientModule%/js/App.js'),
-		Screens = require('%PathToCoreWebclientModule%/js/Screens.js'),
-
-		WindowOpener = require('%PathToCoreWebclientModule%/js/WindowOpener.js'),
 
 		CAbstractFileModel = require('%PathToCoreWebclientModule%/js/models/CAbstractFileModel.js'),
 
-		oOpenedWindows = {},
-		oSyncStartedMoments = {},
-		iCheckWindowsInterval = 0
+		FilesActions = require('modules/%ModuleName%/js/utils/FilesActions.js')
 	;
-
-	function checkOpenedWindows()
-	{
-		_.each(oOpenedWindows, function (oData, sFullPath) {
-			var
-				oWin = oData['Win']
-				// oFile = oData['File']
-			;
-			if (oWin.closed)
-			{
-				oSyncStartedMoments[sFullPath] = moment();
-				delete oOpenedWindows[sFullPath];
-				// oFile._editor_setCheckChangesTimer();
-			}
-		});
-		if (_.isEmpty(oOpenedWindows))
-		{
-			clearInterval(iCheckWindowsInterval);
-		}
-	}
-
-	function addOpenedWindow(oFile, oWin)
-	{
-		var sFullPath = oFile.fullPath();
-		oOpenedWindows[sFullPath] = {
-			'Win': oWin,
-			'File': oFile
-		};
-		clearInterval(iCheckWindowsInterval);
-		iCheckWindowsInterval = setInterval(function () {
-			checkOpenedWindows();
-		}, 500);
-	}
-
-	// function isEditEnded(oFile, oResponseResult)
-	// {
-	// 	if (oFile.oExtendedProps.LastEdited && oResponseResult.ExtendedProps.LastEdited)
-	// 	{
-	// 		return oFile.oExtendedProps.LastEdited !== oResponseResult.ExtendedProps.LastEdited;
-	// 	}
-	// 	return oResponseResult.LastModified !== oFile.iLastModified;
-	// }
-	//
-	// function isSyncTimeNotExpired(sFullPath)
-	// {
-	// 	return oSyncStartedMoments[sFullPath] && moment().diff(oSyncStartedMoments[sFullPath]) < 20000;
-	// }
 
 	if (App.isUserNormalOrTenant())
 	{
@@ -95,20 +39,20 @@ module.exports = function (oAppData) {
 					if (oFile.hasAction('view') && oFile.oActionsData['view'] && -1 !== $.inArray(oFile.extension(), aExtensionsToView))
 					{
 						delete oFile.oActionsData['view'].HandlerName;
-						oFile.oActionsData['view'].Handler = function () {
-							var
-								oWin = null,
-								sUrl = UrlUtils.getAppPath() + this.getActionUrl('view') + '/' + moment().unix()
-							;
-							if (Types.isNonEmptyString(sUrl) && sUrl !== '#')
-							{
-								oWin = WindowOpener.open(sUrl, sUrl, false);
-								if (oWin)
-								{
-									oWin.focus();
-								}
-							}
-						}.bind(oFile);
+						oFile.oActionsData['view'].Handler = FilesActions.view.bind(oFile);
+					}
+					if (oFile.hasAction('convert')) {
+						oFile.removeAction('convert');
+						if (oFile.oActionsData['convert']) {
+							oFile.actions.unshift('convert');
+							oFile.oActionsData['convert'].Text = TextUtils.i18n('%MODULENAME%/ACTION_EDIT_FILE');
+							oFile.oActionsData['convert'].Handler = FilesActions.convert.bind(oFile);
+						}
+						if (oFile.hasAction('view'))
+						{
+							oFile.removeAction('view');
+							oFile.actions.push('view');
+						}
 					}
 					if (oFile.hasAction('edit'))
 					{
@@ -117,65 +61,7 @@ module.exports = function (oAppData) {
 						{
 							oFile.actions.unshift('edit');
 							oFile.oActionsData['edit'].Text = TextUtils.i18n('%MODULENAME%/ACTION_EDIT_FILE');
-							oFile.oActionsData['edit'].Handler = function () {
-								if (oOpenedWindows[oFile.fullPath()] && !oOpenedWindows[oFile.fullPath()].Win.closed)
-								{
-									oOpenedWindows[oFile.fullPath()].Win.focus();
-								}
-								// else if (isSyncTimeNotExpired(oFile.fullPath()))
-								// {
-								// 	Screens.showReport(TextUtils.i18n('%MODULENAME%/REPORT_WAIT_UNTIL_FILE_SYNCED'));
-								// 	if (!this._editor_iCheckChangesTimer)
-								// 	{
-								// 		oFile._editor_setCheckChangesTimer();
-								// 	}
-								// }
-								else
-								{
-									var
-										oWin = null,
-										sUrl = UrlUtils.getAppPath() + this.getActionUrl('edit') + '/' + moment().unix()
-									;
-									if (Types.isNonEmptyString(sUrl) && sUrl !== '#')
-									{
-										oWin = WindowOpener.open(sUrl, sUrl, false);
-										if (oWin)
-										{
-											addOpenedWindow(oFile, oWin)
-											oWin.focus();
-										}
-									}
-								}
-							}.bind(oFile);
-							// oFile._editor_setCheckChangesTimer = function () {
-							// 	clearTimeout(this._editor_iCheckChangesTimer);
-							// 	this._editor_iCheckChangesTimer = setTimeout(this._editor_checkChanges, 1000);
-							// }.bind(oFile);
-							// oFile._editor_checkChanges = function () {
-							// 	clearTimeout(this._editor_iCheckChangesTimer);
-							// 	Ajax.send('Files', 'GetFileInfo', {
-							// 		'UserId': App.getUserId(),
-							// 		'Type': this.storageType(),
-							// 		'Path': this.path(),
-							// 		'Id': this.fileName()
-							// 	}, function (oResponse) {
-							// 		var bEditedEnded = isEditEnded(this, oResponse.Result);
-							// 		if (!bEditedEnded && isSyncTimeNotExpired(this.fullPath()))
-							// 		{
-							// 			oFile._editor_setCheckChangesTimer();
-							// 		}
-							// 		else
-							// 		{
-							// 			delete this._editor_iCheckChangesTimer;
-							// 			delete oSyncStartedMoments[this.fullPath()];
-							// 			if (bEditedEnded)
-							// 			{
-							// 				ModulesManager.run('FilesWebclient', 'refresh');
-							// 				Screens.showReport(TextUtils.i18n('%MODULENAME%/REPORT_FILE_SYNCED_SUCCESSFULLY'));
-							// 			}
-							// 		}
-							// 	}, this);
-							// }.bind(oFile);
+							oFile.oActionsData['edit'].Handler = FilesActions.edit.bind(oFile);
 						}
 						if (oFile.hasAction('view'))
 						{
