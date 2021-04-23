@@ -26,5 +26,9 @@
 	"Secret": [
 		"",
 		"string"
+	],
+	"EnableHistory": [
+		true,
+		"bool"
 	]
 }

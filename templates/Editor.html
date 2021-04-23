@@ -108,6 +108,8 @@
         var сonnectEditor = function () {
 
             var config = {{CONFIG}};
+            var history = {{HISTORY}};
+            var historyData = {{HISTORY_DATA}};
 
             config.width = "100%";
             config.height = "100%";
@@ -122,6 +124,44 @@
                 "onDownloadAs": onDownloadAs
             };
 
+            if (history !== false && historyData !== false)
+            {
+                config.events['onRequestHistory'] = function () {
+                    docEditor.refreshHistory(history);
+                };
+                config.events['onRequestHistoryData'] = function (event) {
+                    console.log(event.data, historyData[event.data]);
+                    docEditor.setHistoryData(historyData[event.data]);
+                };
+                config.events['onRequestHistoryClose'] = function () {
+                    document.location.reload();
+                };
+                config.events['onRequestRestore'] = function (event) {
+                    var version = event.data.version;
+                    console.log('event:', event);
+                    history.currentVersion++;
+
+                    for (var i = 0; i < history.history.length; i++) {
+                        if (history.history[i].version === version) {
+                            var newHistory = JSON.parse(JSON.stringify(history.history[i]));
+                            newHistory.version = history.currentVersion;
+                            history.history.push(newHistory);
+
+                            break;
+                        }
+                    }
+                    console.log('history: ', history);
+
+                    var newHistoryData = JSON.parse(JSON.stringify(historyData[version]));
+                    newHistoryData.version = history.currentVersion;
+                    console.log('newHistoryData: ', newHistoryData);
+//                    historyData.push(newHistoryData);
+                    historyData[history.currentVersion] = newHistoryData;
+                    console.log('historyData: ', historyData);
+
+                    docEditor.refreshHistory(history);
+                };
+            }
             docEditor = new DocsAPI.DocEditor("iframeEditor", config);
         };
 
