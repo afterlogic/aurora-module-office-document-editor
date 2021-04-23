@@ -136,31 +136,31 @@
                 config.events['onRequestHistoryClose'] = function () {
                     document.location.reload();
                 };
-                config.events['onRequestRestore'] = function (event) {
-                    var version = event.data.version;
-                    console.log('event:', event);
-                    history.currentVersion++;
+                // config.events['onRequestRestore'] = function (event) {
+                //     var version = event.data.version;
+                //     console.log('event:', event);
+                //     history.currentVersion++;
 
-                    for (var i = 0; i < history.history.length; i++) {
-                        if (history.history[i].version === version) {
-                            var newHistory = JSON.parse(JSON.stringify(history.history[i]));
-                            newHistory.version = history.currentVersion;
-                            history.history.push(newHistory);
+                //     for (var i = 0; i < history.history.length; i++) {
+                //         if (history.history[i].version === version) {
+                //             var newHistory = JSON.parse(JSON.stringify(history.history[i]));
+                //             newHistory.version = history.currentVersion;
+                //             history.history.push(newHistory);
 
-                            break;
-                        }
-                    }
-                    console.log('history: ', history);
+                //             break;
+                //         }
+                //     }
+                //     console.log('history: ', history);
 
-                    var newHistoryData = JSON.parse(JSON.stringify(historyData[version]));
-                    newHistoryData.version = history.currentVersion;
-                    console.log('newHistoryData: ', newHistoryData);
-//                    historyData.push(newHistoryData);
-                    historyData[history.currentVersion] = newHistoryData;
-                    console.log('historyData: ', historyData);
+                //     var newHistoryData = JSON.parse(JSON.stringify(historyData[version]));
+                //     newHistoryData.version = history.currentVersion;
+                //     console.log('newHistoryData: ', newHistoryData);
+                //     historyData.push(newHistoryData);
+                //     historyData[history.currentVersion] = newHistoryData;
+                //     console.log('historyData: ', historyData);
 
-                    docEditor.refreshHistory(history);
-                };
+                //     docEditor.refreshHistory(history);
+                // };
             }
             docEditor = new DocsAPI.DocEditor("iframeEditor", config);
         };
