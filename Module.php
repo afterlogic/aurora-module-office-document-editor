@@ -376,9 +376,9 @@ class Module extends \Aurora\System\Module\AbstractModule
 		return $mResult;
 	}
 
-<<<<<<< Updated upstream
 	public function ConvertDocument($Type, $Path, $FileName)
 	{
+		$mResult = false;
 		$aExtensions = [
 			'xls' => 'xlsx',
 			'pps' => 'ppsx',
@@ -393,14 +393,13 @@ class Module extends \Aurora\System\Module\AbstractModule
 		}
 		else
 		{
-			self::Decorator()->ConvertDocumentToFormat($Type, $Path, $FileName, $sNewExtension);
+			$mResult = self::Decorator()->ConvertDocumentToFormat($Type, $Path, $FileName, $sNewExtension);
 		}
+
+		return $mResult;
 	}
 
 	public function ConvertDocumentToFormat($Type, $Path, $FileName, $ToExtension)
-=======
-	public function ConvertDocument($Type, $Path, $FileName, $ToExtension)
->>>>>>> Stashed changes
 	{
 		$mResult = false;
 		$oFileInfo = \Aurora\Modules\Files\Module::Decorator()->GetFileInfo(\Aurora\System\Api::getAuthenticatedUserId(), $Type, $Path, $FileName);
