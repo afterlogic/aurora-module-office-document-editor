@@ -223,13 +223,13 @@ class Module extends \Aurora\System\Module\AbstractModule
 					$aHashValues['Path'],
 					$aHashValues['Id']
 				);
-				$aHistory = $this->getHistory(\Aurora\System\Api::getAuthenticatedUserPublicId(), $oFileInfo);
 			}
 			catch (\Exception $oEx) {}
 			if ($oFileInfo)
 			{
 				$lastModified = $oFileInfo->LastModified;
 				$docKey = \md5($oFileInfo->RealPath . $lastModified);
+				$aHistory = $this->getHistory(\Aurora\System\Api::getAuthenticatedUserPublicId(), $oFileInfo);
 			}
 		}
 
@@ -490,7 +490,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 		$responceFromConvertService = $this->SendRequestToConvertService($document_uri, $from_extension, $to_extension, $document_revision_id, $is_async);
 		$json = json_decode($responceFromConvertService, true);
 
-		$errorElement = $json["error"];
+		$errorElement = isset($json["error"]) ? $json["error"] : null;
 		if ($errorElement != NULL && $errorElement != "")
 		{
 			$this->ProcessConvServResponceError($errorElement);
@@ -1034,7 +1034,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 
 			if ($oFile instanceof \Afterlogic\DAV\FS\File)
 			{
-				$mResult = $oFile->get();
+				$mResult = $oFile->get(false);
 				if (is_resource($mResult))
 				{
 					$mResult = \stream_get_contents($mResult);
@@ -1059,109 +1059,5 @@ class Module extends \Aurora\System\Module\AbstractModule
 		$sHash = \Aurora\System\Api::EncodeKeyValues($aHash);
 
 		return $sFullUrl . '?download-file/' . $sHash;
-	}
-
-	// --------------------------- Subscriptions ------------------------------------
-
-	/**
-	 * @ignore
-	 * @param array $aArgs Arguments of event.
-	 * @param mixed $mResult Is passed by reference.
-	 */
-	public function onAfterRename(&$aArgs, &$mResult)
-	{
-		if ($this->checkStorageType($aArgs['Type']))
-		{
-			$UserId = $aArgs['UserId'];
-			$this->CheckAccess($UserId);
-
-			$sUserPiblicId = \Aurora\System\Api::getUserPublicIdById($UserId);
-			$sNewName = \trim(\MailSo\Base\Utils::ClearFileName($aArgs['NewName']));
-
-			$sNewName = $this->getManager()->getNonExistentFileName($sUserPiblicId, $aArgs['Type'], $aArgs['Path'], $sNewName);
-			$mResult = $this->getManager()->rename($sUserPiblicId, $aArgs['Type'], $aArgs['Path'], $aArgs['Name'], $sNewName, $aArgs['IsLink']);
-		}
-	}
-
-	/**
-	 * @ignore
-	 * @param array $aArgs Arguments of event.
-	 * @param mixed $mResult Is passed by reference.
-	 */
-	public function onAfterCopy(&$aArgs, &$mResult)
-	{
-		$UserId = $aArgs['UserId'];
-		$this->CheckAccess($UserId);
-
-		$sUserPiblicId = \Aurora\System\Api::getUserPublicIdById($UserId);
-
-		if ($this->checkStorageType($aArgs['FromType']))
-		{
-			foreach ($aArgs['Files'] as $aItem)
-			{
-				$bFolderIntoItself = $aItem['IsFolder'] && $aArgs['ToPath'] === $aItem['FromPath'].'/'.$aItem['Name'];
-				if (!$bFolderIntoItself)
-				{
-					$sNewName = isset($aItem['NewName']) ? $aItem['NewName'] : $aItem['Name'];
-					$mResult = $this->getManager()->copy(
-						$sUserPiblicId,
-						$aItem['FromType'],
-						$aArgs['ToType'],
-						$aItem['FromPath'],
-						$aArgs['ToPath'],
-						$aItem['Name'],
-						$this->getManager()->getNonExistentFileName(
-							$sUserPiblicId,
-							$aArgs['ToType'],
-							$aArgs['ToPath'],
-							$sNewName
-						)
-					);
-				}
-			}
-			self::Decorator()->UpdateUsedSpace();
-			return true;
-		}
-	}
-
-	/**
-	 * @ignore
-	 * @param array $aArgs Arguments of event.
-	 * @param mixed $mResult Is passed by reference.
-	 */
-	public function onAfterMove(&$aArgs, &$mResult)
-	{
-		if ($this->checkStorageType($aArgs['FromType']))
-		{
-			$UserId = $aArgs['UserId'];
-			$this->CheckAccess($UserId);
-
-			$sUserPiblicId = \Aurora\System\Api::getUserPublicIdById($UserId);
-			foreach ($aArgs['Files'] as $aItem)
-			{
-				$bFolderIntoItself = $aItem['IsFolder'] && $aArgs['ToPath'] === $aItem['FromPath'].'/'.$aItem['Name'];
-				if (!$bFolderIntoItself)
-				{
-					$mResult = $this->getManager()->copy(
-						$sUserPiblicId,
-						$aItem['FromType'],
-						$aArgs['ToType'],
-						$aItem['FromPath'],
-						$aArgs['ToPath'],
-						$aItem['Name'],
-						$this->getManager()->getNonExistentFileName(
-							$sUserPiblicId,
-							$aArgs['ToType'],
-							$aArgs['ToPath'],
-							$aItem['Name']
-						),
-						true
-					);
-				}
-			}
-
-			self::Decorator()->UpdateUsedSpace();
-			return true;
-		}
 	}
 }
