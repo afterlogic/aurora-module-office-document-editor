@@ -116,6 +116,13 @@ class Module extends \Aurora\System\Module\AbstractModule
 		return !!preg_match('/\.(' . $sExtensions . ')$/', strtolower(trim($sFileName)));
 	}
 
+	protected function isTrustedRequest()
+	{
+		$sTrustedServerHost = $this->getConfig('TrustedServerHost', '');
+		$sServerHost = parse_url($_SERVER['HTTP_ORIGIN'], PHP_URL_HOST);
+		return empty($sTrustedServerHost) || (!empty($sTrustedServerHost) && $sTrustedServerHost === $sServerHost);
+	}
+
 	/**
 	 *
 	 * @param type $aArguments
@@ -162,13 +169,16 @@ class Module extends \Aurora\System\Module\AbstractModule
 			}
 			else if ($this->isOfficeDocument($sFileName) || $sFileName === 'diff.zip' || $sFileName === 'changes.json')
 			{
-				$sAuthToken = isset($aValues['AuthToken']) ? $aValues['AuthToken'] : null;
-				if (isset($sAuthToken))
+				if ($this->isTrustedRequest())
 				{
-					\Aurora\System\Api::setAuthToken($sAuthToken);
-					\Aurora\System\Api::setUserId(
-						\Aurora\System\Api::getAuthenticatedUserId($sAuthToken)
-					);
+					$sAuthToken = isset($aValues['AuthToken']) ? $aValues['AuthToken'] : null;
+					if (isset($sAuthToken))
+					{
+						\Aurora\System\Api::setAuthToken($sAuthToken);
+						\Aurora\System\Api::setUserId(
+							\Aurora\System\Api::getAuthenticatedUserId($sAuthToken)
+						);
+					}
 				}
 			}
 		}
@@ -965,6 +975,11 @@ class Module extends \Aurora\System\Module\AbstractModule
 				}
 
 				array_push($hist, $obj);
+				$oJwt = new Classes\JwtManager($this->getConfig('Secret', ''));
+				if ($oJwt->isJwtEnabled())
+				{
+					$dataObj['token'] = $oJwt->jwtEncode($dataObj);
+				}
 				$histData[$i] = $dataObj;
 			}
 

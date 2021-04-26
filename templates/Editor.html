@@ -124,13 +124,15 @@
                 "onDownloadAs": onDownloadAs
             };
 
+//            console.log(config.document.url);
+
             if (history !== false && historyData !== false)
             {
                 config.events['onRequestHistory'] = function () {
                     docEditor.refreshHistory(history);
                 };
                 config.events['onRequestHistoryData'] = function (event) {
-                    console.log(event.data, historyData[event.data]);
+//                    console.log(event.data, historyData[event.data]);
                     docEditor.setHistoryData(historyData[event.data]);
                 };
                 config.events['onRequestHistoryClose'] = function () {
