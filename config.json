@@ -8,7 +8,7 @@
 		"bool"
 	],
 	"ExtensionsToView": [
-		["doc", "xls", "pps", "pps", "odt", "pdf"],
+		["doc", "xls", "ppt", "pps", "odt", "pdf"],
 		"array"
 	],
 	"ExtensionsToConvert": [
