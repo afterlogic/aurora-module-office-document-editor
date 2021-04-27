@@ -12,7 +12,7 @@
 		"array"
 	],
 	"ExtensionsToConvert": [
-		["xls", "pps", "doc", "odt"],
+		{"xls": "xlsx", "pps": "ppsx", "doc": "docx", "odt": "docx", "odp": "ppsx", "ods": "xlsx"},
 		"array"
 	],
 	"ExtensionsToEdit": [

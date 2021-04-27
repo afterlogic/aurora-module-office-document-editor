@@ -17,9 +17,53 @@ namespace Aurora\Modules\OfficeDocumentEditor;
 class Module extends \Aurora\System\Module\AbstractModule
 {
 
-	public $ExtsSpreadsheet = [".xls", ".xlsx", ".xlsm", ".xlt", ".xltx", ".xltm", ".ods", ".fods", ".ots", ".csv"];
-	public $ExtsPresentation = [".pps", ".ppsx", ".ppsm", ".ppt", ".pptx", ".pptm", ".pot", ".potx", ".potm", ".odp", ".fodp", ".otp"];
-	public $ExtsDocument = [".doc", ".docx", ".docm", ".dot", ".dotx", ".dotm", ".odt", ".fodt", ".ott", ".rtf", ".txt", ".html", ".htm", ".mht", ".pdf", ".djvu", ".fb2", ".epub", ".xps"];
+	public $ExtsSpreadsheet = [
+		".xls",
+		".xlsx",
+		".xlsm",
+		".xlt",
+		".xltx",
+		".xltm",
+		".ods",
+		".fods",
+		".ots",
+		".csv"
+	];
+	public $ExtsPresentation = [
+		".pps",
+		".ppsx",
+		".ppsm",
+		".ppt",
+		".pptx",
+		".pptm",
+		".pot",
+		".potx",
+		".potm",
+		".odp",
+		".fodp",
+		".otp"
+	];
+	public $ExtsDocument = [
+		".doc",
+		".docx",
+		".docm",
+		".dot",
+		".dotx",
+		".dotm",
+		".odt",
+		".fodt",
+		".ott",
+		".rtf",
+		".txt",
+		".html",
+		".htm",
+		".mht",
+		".pdf",
+		".djvu",
+		".fb2",
+		".epub",
+		".xps"
+	];
 
 
 	/**
@@ -42,10 +86,6 @@ class Module extends \Aurora\System\Module\AbstractModule
 		$this->subscribeEvent('Files::GetFile', [$this, 'onGetFile'], 10);
 		$this->subscribeEvent('Files::GetItems::after', array($this, 'onAfterGetItems'), 20000);
 		$this->subscribeEvent('Files::GetFileInfo::after', array($this, 'onAfterGetFileInfo'), 20000);
-
-		// $this->subscribeEvent('Files::Copy::after', array($this, 'onAfterCopy'));
-		// $this->subscribeEvent('Files::Move::after', array($this, 'onAfterMove'));
-		// $this->subscribeEvent('Files::Rename::after', array($this, 'onAfterRename'));
 
 		$this->subscribeEvent('AddToContentSecurityPolicyDefault', array($this, 'onAddToContentSecurityPolicyDefault'));
 	}
@@ -103,7 +143,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 	{
 		$ext = strtolower(pathinfo($sFilename, PATHINFO_EXTENSION));
 
-		return in_array($ext, $this->getExtensionsToConvert());
+		return in_array($ext, array_keys($this->getExtensionsToConvert()));
 	}
 
 	/**
@@ -119,7 +159,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 	protected function isTrustedRequest()
 	{
 		$sTrustedServerHost = $this->getConfig('TrustedServerHost', '');
-		$sServerHost = parse_url($_SERVER['HTTP_ORIGIN'], PHP_URL_HOST);
+		$sServerHost = isset($_SERVER['HTTP_ORIGIN']) ? parse_url($_SERVER['HTTP_ORIGIN'], PHP_URL_HOST) : $_SERVER['REMOTE_ADDR'];
 		return empty($sTrustedServerHost) || (!empty($sTrustedServerHost) && $sTrustedServerHost === $sServerHost);
 	}
 
@@ -239,7 +279,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 			{
 				$lastModified = $oFileInfo->LastModified;
 				$docKey = \md5($oFileInfo->RealPath . $lastModified);
-				$aHistory = $this->getHistory(\Aurora\System\Api::getAuthenticatedUserPublicId(), $oFileInfo);
+				$aHistory = $this->getHistory(\Aurora\System\Api::getAuthenticatedUserPublicId(), $oFileInfo, $docKey, $fileuri);
 			}
 		}
 
@@ -389,12 +429,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 	public function ConvertDocument($Type, $Path, $FileName)
 	{
 		$mResult = false;
-		$aExtensions = [
-			'xls' => 'xlsx',
-			'pps' => 'ppsx',
-			'doc' => 'docx',
-			'odt' => 'docx',
-		];
+		$aExtensions = $this->getExtensionsToConvert();
 		$sExtension = pathinfo($FileName, PATHINFO_EXTENSION);
 		$sNewExtension = isset($aExtensions[$sExtension]) ? $aExtensions[$sExtension] : null;
 		if ($sNewExtension === null)
@@ -708,6 +743,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 									// save previous version
 
 									\Aurora\System\Api::skipCheckUserRole(true);
+									$GLOBALS['__SKIP_HISTORY__'] = true;
 									\Aurora\Modules\Files\Module::Decorator()->Copy(
 										$aHashValues['UserId'],
 										$aHashValues['Type'],
@@ -725,6 +761,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 											]
 										]
 									);
+									unset($GLOBALS['__SKIP_HISTORY__']);
 								}
 								$mResult = $this->createFile((int) $aHashValues['UserId'], $aHashValues['Type'], $aHashValues['Path'], $aHashValues['Name'], $rData);
 
@@ -898,7 +935,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 		return $oItem->getRelativePath() . '/' . $oItem->getName() . '/' . $version;
 	}
 
-	protected function getHistory($sUserPublicId, $oFileInfo)
+	protected function getHistory($sUserPublicId, $oFileInfo, $docKey, $sUrl)
 	{
 		$result = [];
 
@@ -910,45 +947,48 @@ class Module extends \Aurora\System\Module\AbstractModule
 			$hist = [];
 			$histData = [];
 
-			for ($i = 1; $i <= $curVer; $i++)
+			for ($i = 0; $i <= $curVer; $i++)
 			{
 				$obj = [];
 				$dataObj = [];
-				$verDir = $this->getVersionDir($histDir, $i);
+				$verDir = $this->getVersionDir($histDir, $i + 1);
 
-				$docKey = \md5($oFileInfo->RealPath . $oFileInfo->LastModified);
 				$key = $i == $curVer ? $docKey : $this->getFileContent($sUserPublicId, $oFileInfo->TypeStr . $verDir . '/key.txt');
 
 				$obj["key"] = $key;
 				$obj["version"] = $i;
 
-				// if ($i == 0) {
+				if ($i === 0)
+				{
 				// 	$createdInfo = file_get_contents($histDir . DIRECTORY_SEPARATOR . "createdInfo.json");
 				// 	$json = json_decode($createdInfo, true);
+					$oUser = \Aurora\Modules\Core\Module::getInstance()->GetUserByPublicId($oFileInfo->Owner);
+					$obj["created"] = date("Y-m-d H:i:s", $oFileInfo->LastModified);
+					$obj["user"] = [
+						"id" => (string) $oUser->EntityId,
+						"name" => $oFileInfo->Owner
+					];
+				}
 
-				// 	$obj["created"] = $json["created"];
-				// 	$obj["user"] = [
-				// 		"id" => $json["uid"],
-				// 		"name" => $json["name"]
-				// 	];
-				// }
-
-				$ext = strtolower(pathinfo($oFileInfo->Name, PATHINFO_EXTENSION));
-				$oPrevFileInfo = \Aurora\Modules\Files\Module::Decorator()->GetFileInfo(
-					$sUserPublicId,
-					$oFileInfo->TypeStr,
-					$verDir,
-					'prev.' . $ext
-				);
-
+				if ($i != $curVer)
+				{
+					$ext = strtolower(pathinfo($oFileInfo->Name, PATHINFO_EXTENSION));
+					$oPrevFileInfo = \Aurora\Modules\Files\Module::Decorator()->GetFileInfo(
+						$sUserPublicId,
+						$oFileInfo->TypeStr,
+						$verDir,
+						'prev.' . $ext
+					);
+					$sUrl = $this->getDownloadUrl($oPrevFileInfo->getHash());
+				}
 
 				$dataObj["key"] = $key;
-				$dataObj["url"] = $this->getDownloadUrl($oPrevFileInfo->getHash());
+				$dataObj["url"] = $sUrl;
 				$dataObj["version"] = $i;
 
 				if ($i > 0)
 				{
-					$changes = json_decode($this->getFileContent($sUserPublicId, $oFileInfo->TypeStr . $verDir . '/changes.json'), true);
+					$changes = json_decode($this->getFileContent($sUserPublicId, $oFileInfo->TypeStr . $this->getVersionDir($histDir, $i) . '/changes.json'), true);
 					$change = $changes["changes"][0];
 
 					$obj["changes"] = $changes["changes"];
@@ -967,7 +1007,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 					$oDiffFileInfo = \Aurora\Modules\Files\Module::Decorator()->GetFileInfo(
 						$sUserPublicId,
 						$oFileInfo->TypeStr,
-						$verDir,
+						$this->getVersionDir($histDir, $i),
 						'diff.zip'
 					);
 
