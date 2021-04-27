@@ -8,11 +8,11 @@
 		"bool"
 	],
 	"ExtensionsToView": [
-		["xls", "pps", "doc", "odt", "pdf"],
+		["doc", "xls", "pps", "pps", "odt", "pdf"],
 		"array"
 	],
 	"ExtensionsToConvert": [
-		{"xls": "xlsx", "pps": "ppsx", "doc": "docx", "odt": "docx", "odp": "ppsx", "ods": "xlsx"},
+		{"doc": "docx", "xls": "xlsx", "pps": "ppsx", "ppt": "pptx", "odt": "docx", "odp": "pptx", "ods": "xlsx"},
 		"array"
 	],
 	"ExtensionsToEdit": [
