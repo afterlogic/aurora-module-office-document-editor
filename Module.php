@@ -118,7 +118,8 @@ class Module extends \Aurora\System\Module\AbstractModule
 	{
 		return array_merge(
 			$this->getExtensionsToView(),
-			$this->getExtensionsToEdit()
+			$this->getExtensionsToEdit(),
+			array_keys($this->getExtensionsToConvert())
 		);
 	}
 
@@ -137,6 +138,13 @@ class Module extends \Aurora\System\Module\AbstractModule
 		$ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
 
 		return in_array($ext, $this->getExtensionsToView());
+	}
+
+	protected function documentCanBeEdited($filename)
+	{
+		$ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+
+		return in_array($ext, $this->getExtensionsToEdit());
 	}
 
 	protected function documentCanBeConverted($sFilename)
@@ -810,18 +818,15 @@ class Module extends \Aurora\System\Module\AbstractModule
 					$bHasWriteAccess = !$bAccessSet || ($bAccessSet && (int) $oItem->ExtendedProps['Access'] === \Afterlogic\DAV\FS\Permission::Write);
 					if ($bHasWriteAccess)
 					{
-						if ($this->isReadOnlyDocument($oItem->Name))
+						if ($this->documentCanBeConverted($oItem->Name))
 						{
-							if ($this->documentCanBeConverted($oItem->Name))
-							{
-								$oItem->UnshiftAction([
-									'convert' => [
-										'url' => ''
-									]
-								]);
-							}
+							$oItem->UnshiftAction([
+								'convert' => [
+									'url' => ''
+								]
+							]);
 						}
-						else
+						else if ($this->documentCanBeEdited($oItem->Name))
 						{
 							$sHash = $oItem->getHash();
 							$aHashValues = \Aurora\System\Api::DecodeKeyValues($sHash);
@@ -873,6 +878,11 @@ class Module extends \Aurora\System\Module\AbstractModule
 
 
 	// History
+
+	public function RestoreFromHistory($Url, $Version)
+	{
+
+	}
 
 	protected function getHistoryDir($oFileInfo)
 	{
