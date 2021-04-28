@@ -744,14 +744,28 @@ class Module extends \Aurora\System\Module\AbstractModule
 								if ($this->getConfig('EnableHistory', false))
 								{
 									$histDir = $this->getHistoryDir($oFileInfo);
-									$verDir = $this->getVersionDir($histDir, $this->getFileVersion($histDir) + 1, true);
-									$path_parts = pathinfo($oFileInfo->Name);
+									$curVer = $this->getFileVersion($histDir);
+									$verDir = $this->getVersionDir($histDir, $curVer + 1, true);
+									$ext = strtolower(pathinfo($oFileInfo->Name, PATHINFO_EXTENSION));
 
-									$ext = $path_parts['extension'];
 									// save previous version
 
 									\Aurora\System\Api::skipCheckUserRole(true);
+
+									if (!isset($oFileInfo->ExtendedProps['Created']) && $curVer == 0)
+									{
+										\Aurora\Modules\Files\Module::Decorator()->UpdateExtendedProps(
+											$aHashValues['UserId'],
+											$aHashValues['Type'],
+											$oFileInfo->Path,
+											$oFileInfo->Name,
+											[
+												'Created' => $oFileInfo->LastModified
+											]
+										);
+									}
 									$GLOBALS['__SKIP_HISTORY__'] = true;
+
 									\Aurora\Modules\Files\Module::Decorator()->Copy(
 										$aHashValues['UserId'],
 										$aHashValues['Type'],
@@ -908,7 +922,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 
 	protected function getFileVersion($histDir)
 	{
-		$ver = 1;
+		$ver = 0;
 
 		$oServer = \Afterlogic\DAV\Server::getInstance();
 		$oServer->setUser(\Aurora\System\Api::getAuthenticatedUserPublicId());
@@ -952,12 +966,12 @@ class Module extends \Aurora\System\Module\AbstractModule
 		$histDir = $this->getHistoryDir($oFileInfo);
 
 		$curVer = $this->getFileVersion($histDir);
-		if ($curVer > 1)
+		if ($curVer > 0)
 		{
 			$hist = [];
 			$histData = [];
 
-			for ($i = 1; $i <= $curVer; $i++)
+			for ($i = 0; $i <= $curVer; $i++)
 			{
 				$obj = [];
 				$dataObj = [];
@@ -966,14 +980,26 @@ class Module extends \Aurora\System\Module\AbstractModule
 				$key = $i == $curVer ? $docKey : $this->getFileContent($sUserPublicId, $oFileInfo->TypeStr . $verDir . '/key.txt');
 
 				$obj["key"] = $key;
-				$obj["version"] = $i;
+				$obj["version"] = $i + 1;
 
-				if ($i === 1)
+				if ($i === 0)
 				{
-				// 	$createdInfo = file_get_contents($histDir . DIRECTORY_SEPARATOR . "createdInfo.json");
-				// 	$json = json_decode($createdInfo, true);
 					$oUser = \Aurora\Modules\Core\Module::getInstance()->GetUserByPublicId($oFileInfo->Owner);
-					$obj["created"] = date("Y-m-d H:i:s", $oFileInfo->LastModified);
+					$ext = strtolower(pathinfo($oFileInfo->Name, PATHINFO_EXTENSION));
+					$oPrevFileInfo = \Aurora\Modules\Files\Module::Decorator()->GetFileInfo(
+						$sUserPublicId,
+						$oFileInfo->TypeStr,
+						$verDir,
+						'prev.' . $ext
+					);
+					if (isset($oPrevFileInfo->ExtendedProps['Created']))
+					{
+					 $obj["created"] = date("Y-m-d H:i:s", $oPrevFileInfo->ExtendedProps['Created']);
+					}
+					else
+					{
+						$obj["created"] = '';
+					}
 					$obj["user"] = [
 						"id" => (string) $oUser->EntityId,
 						"name" => $oFileInfo->Owner
@@ -994,9 +1020,9 @@ class Module extends \Aurora\System\Module\AbstractModule
 
 				$dataObj["key"] = $key;
 				$dataObj["url"] = $sUrl;
-				$dataObj["version"] = $i;
+				$dataObj["version"] = $i+1;
 
-				if ($i > 1)
+				if ($i > 0)
 				{
 					$changes = json_decode($this->getFileContent($sUserPublicId, $oFileInfo->TypeStr . $this->getVersionDir($histDir, $i) . '/changes.json'), true);
 					$change = $changes["changes"][0];
@@ -1006,9 +1032,9 @@ class Module extends \Aurora\System\Module\AbstractModule
 					$obj["created"] = $change["created"];
 					$obj["user"] = $change["user"];
 
-					if (isset($histData[$i - 1]))
+					if (isset($histData[$i]))
 					{
-						$prev = $histData[$i -1];
+						$prev = $histData[$i];
 						$dataObj["previous"] = [
 							"key" => $prev["key"],
 							"url" => $prev["url"]
@@ -1030,11 +1056,11 @@ class Module extends \Aurora\System\Module\AbstractModule
 				{
 					$dataObj['token'] = $oJwt->jwtEncode($dataObj);
 				}
-				$histData[$i] = $dataObj;
+				$histData[$i+1] = $dataObj;
 			}
 
 			array_push($result, [
-					"currentVersion" => $curVer,
+					"currentVersion" => $curVer + 1,
 					"history" => $hist
 				],
 				$histData);
