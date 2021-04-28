@@ -908,7 +908,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 
 	protected function getFileVersion($histDir)
 	{
-		$ver = 0;
+		$ver = 1;
 
 		$oServer = \Afterlogic\DAV\Server::getInstance();
 		$oServer->setUser(\Aurora\System\Api::getAuthenticatedUserPublicId());
@@ -952,12 +952,12 @@ class Module extends \Aurora\System\Module\AbstractModule
 		$histDir = $this->getHistoryDir($oFileInfo);
 
 		$curVer = $this->getFileVersion($histDir);
-		if ($curVer > 0)
+		if ($curVer > 1)
 		{
 			$hist = [];
 			$histData = [];
 
-			for ($i = 0; $i <= $curVer; $i++)
+			for ($i = 1; $i <= $curVer; $i++)
 			{
 				$obj = [];
 				$dataObj = [];
@@ -968,7 +968,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 				$obj["key"] = $key;
 				$obj["version"] = $i;
 
-				if ($i === 0)
+				if ($i === 1)
 				{
 				// 	$createdInfo = file_get_contents($histDir . DIRECTORY_SEPARATOR . "createdInfo.json");
 				// 	$json = json_decode($createdInfo, true);
@@ -996,7 +996,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 				$dataObj["url"] = $sUrl;
 				$dataObj["version"] = $i;
 
-				if ($i > 0)
+				if ($i > 1)
 				{
 					$changes = json_decode($this->getFileContent($sUserPublicId, $oFileInfo->TypeStr . $this->getVersionDir($histDir, $i) . '/changes.json'), true);
 					$change = $changes["changes"][0];
@@ -1006,7 +1006,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 					$obj["created"] = $change["created"];
 					$obj["user"] = $change["user"];
 
-					if (isset($histData[$i -1]))
+					if (isset($histData[$i - 1]))
 					{
 						$prev = $histData[$i -1];
 						$dataObj["previous"] = [
