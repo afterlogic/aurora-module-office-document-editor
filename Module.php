@@ -970,6 +970,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 		{
 			$hist = [];
 			$histData = [];
+			$oUser = \Aurora\Modules\Core\Module::getInstance()->GetUserByPublicId($oFileInfo->Owner);
 
 			for ($i = 0; $i <= $curVer; $i++)
 			{
@@ -984,7 +985,6 @@ class Module extends \Aurora\System\Module\AbstractModule
 
 				if ($i === 0)
 				{
-					$oUser = \Aurora\Modules\Core\Module::getInstance()->GetUserByPublicId($oFileInfo->Owner);
 					$ext = strtolower(pathinfo($oFileInfo->Name, PATHINFO_EXTENSION));
 					$oPrevFileInfo = \Aurora\Modules\Files\Module::Decorator()->GetFileInfo(
 						$sUserPublicId,
@@ -994,7 +994,10 @@ class Module extends \Aurora\System\Module\AbstractModule
 					);
 					if (isset($oPrevFileInfo->ExtendedProps['Created']))
 					{
-					 $obj["created"] = date("Y-m-d H:i:s", $oPrevFileInfo->ExtendedProps['Created']);
+					 	$obj["created"] =  $this->convetToUserTime(
+							$oUser,
+							date("Y-m-d H:i:s", $oPrevFileInfo->ExtendedProps['Created'])
+						);
 					}
 					else
 					{
@@ -1029,7 +1032,10 @@ class Module extends \Aurora\System\Module\AbstractModule
 
 					$obj["changes"] = $changes["changes"];
 					$obj["serverVersion"] = $changes["serverVersion"];
-					$obj["created"] = $change["created"];
+					$obj["created"] = $this->convetToUserTime(
+						$oUser,
+						$change["created"]
+					);
 					$obj["user"] = $change["user"];
 
 					if (isset($histData[$i]))
@@ -1150,5 +1156,17 @@ class Module extends \Aurora\System\Module\AbstractModule
 		$sHash = \Aurora\System\Api::EncodeKeyValues($aHash);
 
 		return $sFullUrl . '?download-file/' . $sHash;
+	}
+
+	protected function convetToUserTime($oUser, $sTime)
+	{
+		$dt = \DateTime::createFromFormat(
+			'Y-m-d H:i:s',
+			$sTime,
+			new \DateTimeZone('UTC')
+		);
+		$dt->setTimezone(new \DateTimeZone($oUser->DefaultTimeZone));
+
+		return $dt->format("Y-m-d H:i:s");
 	}
 }
