@@ -8,7 +8,7 @@
 		"bool"
 	],
 	"ExtensionsToView": [
-		["pdf", "rtf", "csv", "txt", "html", "htm", "mht", "djvu", "fb2", "epub", "xps"],
+		["pdf", "rtf", "csv", "txt", "html", "htm", "mht", "djvu", "fb2", "epub", "xps", "ppt"],
 		"array"
 	],
 	"ExtensionsToConvert": [
@@ -16,7 +16,6 @@
 			"doc": "docx",
 			"xls": "xlsx",
 			"pps": "pptx",
-			"ppt": "pptx",
 			"odt": "docx",
 			"odp": "pptx",
 			"ods": "xlsx",
