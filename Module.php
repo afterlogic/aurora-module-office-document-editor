@@ -158,7 +158,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 	 * @param string $sFileName = ''
 	 * @return bool
 	 */
-	protected function isOfficeDocument($sFileName = '')
+	public function isOfficeDocument($sFileName = '')
 	{
 		$sExtensions = implode('|', $this->getOfficeExtensions());
 		return !!preg_match('/\.(' . $sExtensions . ')$/', strtolower(trim($sFileName)));
@@ -287,6 +287,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 			{
 				$lastModified = $oFileInfo->LastModified;
 				$docKey = \md5($oFileInfo->RealPath . $lastModified);
+				$oFileInfo->Path = $aHashValues['Path'];
 				$aHistory = $this->getHistory(\Aurora\System\Api::getAuthenticatedUserPublicId(), $oFileInfo, $docKey, $fileuri);
 			}
 		}
@@ -425,6 +426,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 				$aArgs,
 				$mResult
 			);
+			\fclose($rData);
 
 			if ($mResult)
 			{
@@ -475,7 +477,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 					$this->GetConvertedUri($sDocumentUri, $sFromExtension, $ToExtension, '', false, $sConvertedDocumentUri);
 					if (!empty($sConvertedDocumentUri))
 					{
-						$rData = \fopen($sConvertedDocumentUri, "r");
+						$rData = \file_get_contents($sConvertedDocumentUri);
 						if ($rData !== false)
 						{
 							$sNewFileName = \Aurora\Modules\Files\Module::Decorator()->GetNonExistentFileName(
@@ -738,7 +740,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 						if ((isset($oFileInfo->ExtendedProps['Access']) && (int) $oFileInfo->ExtendedProps['Access'] === \Afterlogic\DAV\FS\Permission::Write) || !isset($oFileInfo->ExtendedProps['Access'])
 							&& !$this->isReadOnlyDocument($oFileInfo->Name))
 						{
-							$rData = \fopen($data["url"], "r");
+							$rData = \file_get_contents($data["url"]);
 							if ($rData !== false)
 							{
 								if ($this->getConfig('EnableHistory', false))
@@ -908,7 +910,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 		$oServer = \Afterlogic\DAV\Server::getInstance();
 		$oServer->setUser(\Aurora\System\Api::getAuthenticatedUserPublicId());
 		$oItem = $oServer->tree->getNodeForPath('files/' . $sType . $sPath);
-		if ($oItem instanceof \Afterlogic\DAV\FS\Directory)
+		if ($oItem instanceof \Afterlogic\DAV\FS\Directory || $oItem instanceof \Afterlogic\DAV\FS\Root)
 		{
 			if (!$oItem->childExists($sName . '.hist'))
 			{
@@ -976,10 +978,16 @@ class Module extends \Aurora\System\Module\AbstractModule
 			{
 				$obj = [];
 				$dataObj = [];
+
+//				$this->getNextVersion();
 				$verDir = $this->getVersionDir($histDir, $i + 1);
 
 				$key = $i == $curVer ? $docKey : $this->getFileContent($sUserPublicId, $oFileInfo->TypeStr . $verDir . '/key.txt');
 
+				if ($key === false)
+				{
+					continue;
+				}
 				$obj["key"] = $key;
 				$obj["version"] = $i + 1;
 
@@ -1012,13 +1020,8 @@ class Module extends \Aurora\System\Module\AbstractModule
 				if ($i != $curVer)
 				{
 					$ext = strtolower(pathinfo($oFileInfo->Name, PATHINFO_EXTENSION));
-					$oPrevFileInfo = \Aurora\Modules\Files\Module::Decorator()->GetFileInfo(
-						$sUserPublicId,
-						$oFileInfo->TypeStr,
-						$verDir,
-						'prev.' . $ext
-					);
-					$sUrl = $this->getDownloadUrl($oPrevFileInfo->getHash());
+
+					$sUrl = $this->getDownloadUrl(\Aurora\System\Api::getAuthenticatedUserId(), $oFileInfo->TypeStr, $verDir, 'prev.' . $ext);
 				}
 
 				$dataObj["key"] = $key;
@@ -1046,14 +1049,8 @@ class Module extends \Aurora\System\Module\AbstractModule
 							"url" => $prev["url"]
 						];
 					}
-					$oDiffFileInfo = \Aurora\Modules\Files\Module::Decorator()->GetFileInfo(
-						$sUserPublicId,
-						$oFileInfo->TypeStr,
-						$this->getVersionDir($histDir, $i),
-						'diff.zip'
-					);
 
-					$dataObj["changesUrl"] = $this->getDownloadUrl($oDiffFileInfo->getHash());
+					$dataObj["changesUrl"] = $this->getDownloadUrl(\Aurora\System\Api::getAuthenticatedUserId(), $oFileInfo->TypeStr, $this->getVersionDir($histDir, $i), 'diff.zip');
 				}
 
 				array_push($hist, $obj);
@@ -1077,11 +1074,10 @@ class Module extends \Aurora\System\Module\AbstractModule
 
 	protected function updateHistory($iUserId, $sType, $sPath, $data)
 	{
-		$rChangesData = \fopen($data["changesurl"], "r");
+		$rChangesData = \file_get_contents($data["changesurl"]);
 		if ($rChangesData !== false)
 		{
 			$this->createFile($iUserId, $sType, $sPath, 'diff.zip', $rChangesData);
-			\fclose($rChangesData);
 		}
 
 		$histData = $data["changeshistory"];
@@ -1143,14 +1139,23 @@ class Module extends \Aurora\System\Module\AbstractModule
 		return $mResult;
 	}
 
-	protected function getDownloadUrl($sHash)
+	protected function getDownloadUrl($iUserId, $sType, $sPath, $sName)
 	{
+		$sHash = \Aurora\System\Api::EncodeKeyValues([
+			'UserId' =>  $iUserId,
+			'Id' => $sName,
+			'Type' => $sType,
+			'Path' => $sPath,
+			'Name' => $sName,
+			'FileName' => $sName
+		]);
+
 		$sFullUrl = $this->oHttp->GetFullUrl();
 		$aHash = \Aurora\System\Api::DecodeKeyValues($sHash);
 		$aHash['AuthToken'] = \Aurora\System\Api::UserSession()->Set(
 			[
 				'token' => 'auth',
-				'id' => \Aurora\System\Api::getAuthenticatedUserId()
+				'id' => $iUserId
 			]
 		);
 		$sHash = \Aurora\System\Api::EncodeKeyValues($aHash);
