@@ -244,6 +244,9 @@ class Module extends \Aurora\System\Module\AbstractModule
 		$docKey = null;
 		$lastModified = time();
 		$aHistory = [];
+
+		$oUser = \Aurora\System\Api::getAuthenticatedUser();
+
 		if (isset($fileuri))
 		{
 			$fileuri = \urldecode($fileuri);
@@ -288,6 +291,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 				$lastModified = $oFileInfo->LastModified;
 				$docKey = \md5($oFileInfo->RealPath . $lastModified);
 				$oFileInfo->Path = $aHashValues['Path'];
+				$sMode = (isset($oFileInfo->ExtendedProps['Access']) && (int) $oFileInfo->ExtendedProps['Access'] === \Afterlogic\DAV\FS\Permission::Write) || (!isset($oFileInfo->ExtendedProps['Access']) && $oFileInfo->Owner === $oUser->PublicId) ? $sMode : 'view';
 				$aHistory = $this->getHistory(\Aurora\System\Api::getAuthenticatedUserPublicId(), $oFileInfo, $docKey, $fileuri);
 			}
 		}
@@ -305,7 +309,6 @@ class Module extends \Aurora\System\Module\AbstractModule
 
 		if (isset($fileuri) && isset($serverPath))
 		{
-			$oUser = \Aurora\System\Api::getAuthenticatedUser();
 			if ($oUser)
 			{
 				$uid = (string) $oUser->EntityId;
