@@ -1034,6 +1034,10 @@ class Module extends \Aurora\System\Module\AbstractModule
 				if ($i > 0)
 				{
 					$changes = json_decode($this->getFileContent($sUserPublicId, $oFileInfo->TypeStr . $this->getVersionDir($histDir, $i) . '/changes.json'), true);
+
+if (!$changes) {
+	continue;
+}
 					$change = $changes["changes"][0];
 
 					$obj["changes"] = $changes["changes"];
