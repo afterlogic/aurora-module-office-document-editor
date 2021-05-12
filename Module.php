@@ -95,7 +95,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 		\Aurora\System\Api::checkUserRoleIsAtLeast(\Aurora\System\Enums\UserRole::NormalUser);
 
 		return [
-			'ExtensionsToView' => $this->getExtensionsToView()
+			'ExtensionsToView' => $this->getOfficeExtensions()
 		];
 	}
 
@@ -278,12 +278,15 @@ class Module extends \Aurora\System\Module\AbstractModule
 			$oFileInfo = null;
 			try
 			{
-				$oFileInfo = \Aurora\Modules\Files\Module::Decorator()->GetFileInfo(
-					$aHashValues['UserId'],
-					$aHashValues['Type'],
-					$aHashValues['Path'],
-					$aHashValues['Id']
-				);
+				if (isset($aHashValues['UserId'], $aHashValues['Type'], $aHashValues['Path'], $aHashValues['Id']))
+				{
+					$oFileInfo = \Aurora\Modules\Files\Module::Decorator()->GetFileInfo(
+						$aHashValues['UserId'],
+						$aHashValues['Type'],
+						$aHashValues['Path'],
+						$aHashValues['Id']
+					);
+				}
 			}
 			catch (\Exception $oEx) {}
 			if ($oFileInfo)
