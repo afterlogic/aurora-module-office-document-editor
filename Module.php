@@ -416,22 +416,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 				$Path,
 				$FileName
 			);
-			$aArgs = [
-				'UserId' => \Aurora\System\Api::getAuthenticatedUserId(),
-				'Type' => $Type,
-				'Path' => $Path,
-				'Name' => $FileName,
-				'Data' => $rData,
-				'Overwrite' => false,
-				'RangeType' => 0,
-				'Offset' => 0,
-				'ExtendedProps' => []
-			];
-			$this->broadcastEvent(
-				'Files::CreateFile',
-				$aArgs,
-				$mResult
-			);
+			$mResult = $this->createFile(\Aurora\System\Api::getAuthenticatedUserId(), $Type, $Path, $FileName, $rData);
 			\fclose($rData);
 
 			if ($mResult)
@@ -492,23 +477,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 								$Path,
 								$sFileNameWOExt . '.' . $ToExtension
 							);
-							$aArgs = [
-								'UserId' => \Aurora\System\Api::getAuthenticatedUserId(),
-								'Type' => $Type,
-								'Path' => $Path,
-								'Name' => $sNewFileName,
-								'Data' => $rData,
-								'Overwrite' => false,
-								'RangeType' => 0,
-								'Offset' => 0,
-								'ExtendedProps' => []
-							];
-
-							$this->broadcastEvent(
-								'Files::CreateFile',
-								$aArgs,
-								$mResult
-							);
+							$mResult = $this->createFile(\Aurora\System\Api::getAuthenticatedUserId(), $Type, $Path, $sNewFileName, $rData);
 							if ($mResult)
 							{
 								$mResult = \Aurora\Modules\Files\Module::Decorator()->GetFileInfo(\Aurora\System\Api::getAuthenticatedUserId(), $Type, $Path, $sNewFileName);
@@ -964,7 +933,11 @@ class Module extends \Aurora\System\Module\AbstractModule
 			}
 		}
 
-		return $oItem->getRelativePath() . '/' . $oItem->getName() . '/' . $version;
+		list($dir) = \Sabre\Uri\split($histDir);
+		list($sFile, $sStorage) = explode('/', $dir);
+		$sRelativePath = str_replace($sFile . '/' . $sStorage, '', $dir);
+
+		return $sRelativePath . '/' . $oItem->getName() . '/' . $version;
 	}
 
 	protected function getHistory($sUserPublicId, $oFileInfo, $docKey, $sUrl)
@@ -1000,17 +973,17 @@ class Module extends \Aurora\System\Module\AbstractModule
 				if ($i === 0)
 				{
 					$ext = strtolower(pathinfo($oFileInfo->Name, PATHINFO_EXTENSION));
-					$oPrevFileInfo = \Aurora\Modules\Files\Module::Decorator()->GetFileInfo(
+					$aPrevFileExtendedProps = \Aurora\Modules\Files\Module::Decorator()->GetExtendedProps(
 						$sUserPublicId,
 						$oFileInfo->TypeStr,
 						$verDir,
 						'prev.' . $ext
 					);
-					if (isset($oPrevFileInfo->ExtendedProps['Created']))
+					if (isset($aPrevFileExtendedProps['Created']))
 					{
 					 	$obj["created"] =  $this->convetToUserTime(
 							$oUser,
-							date("Y-m-d H:i:s", $oPrevFileInfo->ExtendedProps['Created'])
+							date("Y-m-d H:i:s", $aPrevFileExtendedProps['Created'])
 						);
 					}
 					else
@@ -1090,7 +1063,7 @@ if (!$changes) {
 			$this->createFile($iUserId, $sType, $sPath, 'diff.zip', $rChangesData);
 		}
 
-		$histData = $data["changeshistory"];
+		$histData = isset($data["changeshistory"]) ? $data["changeshistory"] : '';
 		if (empty($histData))
 		{
 		 	$histData = json_encode($data["history"], JSON_PRETTY_PRINT);
