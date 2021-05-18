@@ -166,9 +166,32 @@ class Module extends \Aurora\System\Module\AbstractModule
 
 	protected function isTrustedRequest()
 	{
+		$bResult = false;
+
 		$sTrustedServerHost = $this->getConfig('TrustedServerHost', '');
-		$sServerHost = isset($_SERVER['HTTP_ORIGIN']) ? parse_url($_SERVER['HTTP_ORIGIN'], PHP_URL_HOST) : $_SERVER['REMOTE_ADDR'];
-		return empty($sTrustedServerHost) || (!empty($sTrustedServerHost) && $sTrustedServerHost === $sServerHost);
+		if (empty($sTrustedServerHost))
+		{
+			$bResult = true;
+		}
+		else
+		{
+			if (!empty($_SERVER['HTTP_CLIENT_IP']))
+			{
+				$ip = $_SERVER['HTTP_CLIENT_IP'];
+			}
+			elseif (!empty($_SERVER['HTTP_X_FORWARDED_FOR']))
+			{
+				$ip = $_SERVER['HTTP_X_FORWARDED_FOR'];
+			}
+			else
+			{
+				$ip = $_SERVER['REMOTE_ADDR'];
+			}
+
+			$bResult = $sTrustedServerHost === $ip;
+		}
+
+		return $bResult;
 	}
 
 	/**
