@@ -166,6 +166,8 @@ class Module extends \Aurora\System\Module\AbstractModule
 
 	protected function isTrustedRequest()
 	{
+		return true; // TODO: find another way to protect dowmload url
+
 		$bResult = false;
 
 		$sTrustedServerHost = $this->getConfig('TrustedServerHost', '');
@@ -1034,9 +1036,9 @@ class Module extends \Aurora\System\Module\AbstractModule
 				{
 					$changes = json_decode($this->getFileContent($sUserPublicId, $oFileInfo->TypeStr . $this->getVersionDir($histDir, $i) . '/changes.json'), true);
 
-if (!$changes) {
-	continue;
-}
+					if (!$changes) {
+						continue;
+					}
 					$change = $changes["changes"][0];
 
 					$obj["changes"] = $changes["changes"];
