@@ -82,7 +82,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 			'ode-callback' => 'EntryCallback'
 		]);
 
-		$this->subscribeEvent('System::RunEntry::before', [$this, 'onBeforeFileViewEntry']);
+		$this->subscribeEvent('System::RunEntry::before', [$this, 'onBeforeFileViewEntry'], 10);
 		$this->subscribeEvent('Files::GetFile', [$this, 'onGetFile'], 10);
 		$this->subscribeEvent('Files::GetItems::after', array($this, 'onAfterGetItems'), 20000);
 		$this->subscribeEvent('Files::GetFileInfo::after', array($this, 'onAfterGetFileInfo'), 20000);
