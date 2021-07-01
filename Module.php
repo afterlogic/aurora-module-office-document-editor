@@ -221,24 +221,10 @@ class Module extends \Aurora\System\Module\AbstractModule
 			{
 				$sFileName = isset($aValues['Name']) ? urldecode($aValues['Name']) : '';
 			}
-			if (!isset($aValues['AuthToken']))
+			if ($sAction === 'view' && $this->isOfficeDocument($sFileName) && !isset($aValues['AuthToken']))
 			{
-				if ($sAction === 'view' && $this->isOfficeDocument($sFileName))
-				{
-					$aValues['AuthToken'] = \Aurora\System\Api::UserSession()->Set(
-						[
-							'token' => 'auth',
-							'id' => \Aurora\System\Api::getAuthenticatedUserId()
-						],
-						time(),
-						time() + 60 * 5 // 5 min
-					);
-
-					$sHash = \Aurora\System\Api::EncodeKeyValues($aValues);
-
-					$sViewerUrl = './?editor=' . urlencode($sEntry .'/' . $sHash . '/' . $sAction . '/' . time());
-					\header('Location: ' . $sViewerUrl);
-				}
+				$sViewerUrl = './?editor=' . urlencode($sEntry .'/' . $sHash . '/' . $sAction . '/' . time());
+				\header('Location: ' . $sViewerUrl);
 			}
 			else if ($this->isOfficeDocument($sFileName) || $sFileName === 'diff.zip' || $sFileName === 'changes.json')
 			{
@@ -279,7 +265,22 @@ class Module extends \Aurora\System\Module\AbstractModule
 			if (isset($aFileuri[1]))
 			{
 				$sHash = $aFileuri[1];
+				$aHashValues = \Aurora\System\Api::DecodeKeyValues($sHash);
+				if (!isset($aHashValues['AuthToken']))
+				{
+					$aHashValues['AuthToken'] = \Aurora\System\Api::UserSession()->Set(
+						[
+							'token' => 'auth',
+							'id' => \Aurora\System\Api::getAuthenticatedUserId()
+						],
+						time(),
+						time() + 60 * 5 // 5 min
+					);
+				}
 			}
+			$sHash = \Aurora\System\Api::EncodeKeyValues($aHashValues);
+			$aFileuri[1] = $sHash;
+			$fileuri = implode('/', $aFileuri);
 			$fileuri = $sFullUrl . '?' . $fileuri;
 		}
 
