@@ -340,7 +340,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 		{
 			if ($oUser)
 			{
-				$uid = (string) $oUser->EntityId;
+				$uid = (string) $oUser->Id;
 				$uname = !empty($oUser->Name) ? $oUser->Name : $oUser->PublicId;
 				$lang = \Aurora\System\Utils::ConvertLanguageNameToShort($oUser->Language);
 			}
@@ -1017,7 +1017,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 						$obj["created"] = '';
 					}
 					$obj["user"] = [
-						"id" => (string) $oUser->EntityId,
+						"id" => (string) $oUser->Id,
 						"name" => $oFileInfo->Owner
 					];
 				}
