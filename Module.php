@@ -7,6 +7,8 @@
 
 namespace Aurora\Modules\OfficeDocumentEditor;
 
+use Aurora\System\Application;
+
 /**
  * @license https://www.gnu.org/licenses/agpl-3.0.html AGPL-3.0
  * @license https://afterlogic.com/products/common-licensing Afterlogic Software License
@@ -246,7 +248,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 	public function EntryEditor()
 	{
 		$sResult = '';
-		$sFullUrl = $this->oHttp->GetFullUrl();
+		$sFullUrl = Application::getBaseUrl();
 		$sMode = 'view';
 		$fileuri = isset($_GET['editor']) ? $_GET['editor'] : null;
 		$filename = null;
@@ -490,7 +492,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 				if (isset($aUrlParts[1]))
 				{
 					$aUrlParts[1] = $this->GetFileTempHash($aUrlParts[1]);
-					$sDocumentUri = $this->oHttp->GetFullUrl() . \implode('/', $aUrlParts);
+					$sDocumentUri = Application::getBaseUrl() . \implode('/', $aUrlParts);
 					$this->GetConvertedUri($sDocumentUri, $sFromExtension, $ToExtension, '', false, $sConvertedDocumentUri);
 					if (!empty($sConvertedDocumentUri))
 					{
@@ -1159,7 +1161,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 			'FileName' => $sName
 		]);
 
-		$sFullUrl = $this->oHttp->GetFullUrl();
+		$sFullUrl = Application::getBaseUrl();
 		$aHash = \Aurora\System\Api::DecodeKeyValues($sHash);
 		$aHash['AuthToken'] = \Aurora\System\Api::UserSession()->Set(
 			[
