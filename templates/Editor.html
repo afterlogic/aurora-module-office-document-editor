@@ -105,7 +105,7 @@
             console.log("ONLYOFFICE Document Editor create file: " + event.data);
         };
 
-        var сonnectEditor = function () {
+        var connectEditor = function () {
 
             var config = {{CONFIG}};
             var history = {{HISTORY}};
@@ -168,9 +168,9 @@
         };
 
         if (window.addEventListener) {
-            window.addEventListener("load", сonnectEditor);
+            window.addEventListener("load", connectEditor);
         } else if (window.attachEvent) {
-            window.attachEvent("load", сonnectEditor);
+            window.attachEvent("load", connectEditor);
         }
 
     </script>
