@@ -86,7 +86,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 
 		$this->subscribeEvent('System::RunEntry::before', [$this, 'onBeforeFileViewEntry'], 10);
 		$this->subscribeEvent('Files::GetFile', [$this, 'onGetFile'], 10);
-		$this->subscribeEvent('Files::GetItems::after', array($this, 'onAfterGetItems'), 20000);
+		$this->subscribeEvent('Files::GetItems', array($this, 'onGetItems'), 20000);
 		$this->subscribeEvent('Files::GetFileInfo::after', array($this, 'onAfterGetFileInfo'), 20000);
 
 		$this->subscribeEvent('AddToContentSecurityPolicyDefault', array($this, 'onAddToContentSecurityPolicyDefault'));
@@ -825,7 +825,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 	 * @ignore
 	 * @param array $aData Is passed by reference.
 	 */
-	public function onAfterGetItems($aArgs, &$mResult)
+	public function onGetItems($aArgs, &$mResult)
 	{
 		if (is_array($mResult))
 		{
