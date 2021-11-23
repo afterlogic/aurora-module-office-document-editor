@@ -322,7 +322,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 				$lastModified = $oFileInfo->LastModified;
 				$docKey = \md5($oFileInfo->RealPath . $lastModified);
 				$oFileInfo->Path = $aHashValues['Path'];
-				$sMode = (isset($oFileInfo->ExtendedProps['Access']) && (int) $oFileInfo->ExtendedProps['Access'] === \Afterlogic\DAV\FS\Permission::Write) || (!isset($oFileInfo->ExtendedProps['Access']) && $oFileInfo->Owner === $oUser->PublicId) ? $sMode : 'view';
+				$sMode = (isset($oFileInfo->ExtendedProps['SharedWithMeAccess']) && (int) $oFileInfo->ExtendedProps['SharedWithMeAccess'] === \Afterlogic\DAV\FS\Permission::Write) || (!isset($oFileInfo->ExtendedProps['SharedWithMeAccess']) && $oFileInfo->Owner === $oUser->PublicId) ? $sMode : 'view';
 				$aHistory = $this->getHistory(\Aurora\System\Api::getAuthenticatedUserPublicId(), $oFileInfo, $docKey, $fileuri);
 			}
 		}
@@ -740,7 +740,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 					\Aurora\System\Api::skipCheckUserRole(false);
 					if ($oFileInfo instanceof \Aurora\Modules\Files\Classes\FileItem && $this->isOfficeDocument($oFileInfo->Name))
 					{
-						if ((isset($oFileInfo->ExtendedProps['Access']) && (int) $oFileInfo->ExtendedProps['Access'] === \Afterlogic\DAV\FS\Permission::Write) || !isset($oFileInfo->ExtendedProps['Access'])
+						if ((isset($oFileInfo->ExtendedProps['SharedWithMeAccess']) && (int) $oFileInfo->ExtendedProps['SharedWithMeAccess'] === \Afterlogic\DAV\FS\Permission::Write) || !isset($oFileInfo->ExtendedProps['SharedWithMeAccess'])
 							&& !$this->isReadOnlyDocument($oFileInfo->Name))
 						{
 							$rData = \file_get_contents($data["url"]);
@@ -833,8 +833,8 @@ class Module extends \Aurora\System\Module\AbstractModule
 			{
 				if ($oItem instanceof \Aurora\Modules\Files\Classes\FileItem && $this->isOfficeDocument($oItem->Name))
 				{
-					$bAccessSet = isset($oItem->ExtendedProps['Access']);
-					$bHasWriteAccess = !$bAccessSet || ($bAccessSet && (int) $oItem->ExtendedProps['Access'] === \Afterlogic\DAV\FS\Permission::Write);
+					$bAccessSet = isset($oItem->ExtendedProps['SharedWithMeAccess']);
+					$bHasWriteAccess = !$bAccessSet || ($bAccessSet && (int) $oItem->ExtendedProps['SharedWithMeAccess'] === \Afterlogic\DAV\FS\Permission::Write);
 					if ($bHasWriteAccess)
 					{
 						if ($this->documentCanBeConverted($oItem->Name))
@@ -869,7 +869,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 		{
 			if ($mResult instanceof \Aurora\Modules\Files\Classes\FileItem && $this->isOfficeDocument($mResult->Name))
 			{
-				if ((isset($mResult->ExtendedProps['Access']) && (int) $mResult->ExtendedProps['Access'] === \Afterlogic\DAV\FS\Permission::Write) || !isset($mResult->ExtendedProps['Access'])
+				if ((isset($mResult->ExtendedProps['SharedWithMeAccess']) && (int) $mResult->ExtendedProps['SharedWithMeAccess'] === \Afterlogic\DAV\FS\Permission::Write) || !isset($mResult->ExtendedProps['SharedWithMeAccess'])
 					&& !$this->isReadOnlyDocument($mResult->Name))
 				{
 					$sHash = $mResult->getHash();
