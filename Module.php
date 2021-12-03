@@ -833,9 +833,10 @@ class Module extends \Aurora\System\Module\AbstractModule
 			{
 				if ($oItem instanceof \Aurora\Modules\Files\Classes\FileItem && $this->isOfficeDocument($oItem->Name))
 				{
+					$bEncrypted = isset($oItem->ExtendedProps['InitializationVector']);
 					$bAccessSet = isset($oItem->ExtendedProps['SharedWithMeAccess']);
 					$bHasWriteAccess = !$bAccessSet || ($bAccessSet && (int) $oItem->ExtendedProps['SharedWithMeAccess'] === \Afterlogic\DAV\FS\Permission::Write);
-					if ($bHasWriteAccess)
+					if (!$bEncrypted && $bHasWriteAccess)
 					{
 						if ($this->documentCanBeConverted($oItem->Name))
 						{
