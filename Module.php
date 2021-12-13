@@ -322,7 +322,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 				$lastModified = $oFileInfo->LastModified;
 				$docKey = \md5($oFileInfo->RealPath . $lastModified);
 				$oFileInfo->Path = $aHashValues['Path'];
-				$sMode = (isset($oFileInfo->ExtendedProps['SharedWithMeAccess']) && (int) $oFileInfo->ExtendedProps['SharedWithMeAccess'] === \Afterlogic\DAV\FS\Permission::Write) || (!isset($oFileInfo->ExtendedProps['SharedWithMeAccess']) && $oFileInfo->Owner === $oUser->PublicId) ? $sMode : 'view';
+				$sMode = (isset($oFileInfo->ExtendedProps['SharedWithMeAccess']) && ((int) $oFileInfo->ExtendedProps['SharedWithMeAccess'] === \Afterlogic\DAV\FS\Permission::Write || (int) $oFileInfo->ExtendedProps['SharedWithMeAccess'] === \Afterlogic\DAV\FS\Permission::Reshare)) || (!isset($oFileInfo->ExtendedProps['SharedWithMeAccess']) && $oFileInfo->Owner === $oUser->PublicId) ? $sMode : 'view';
 				$aHistory = $this->getHistory(\Aurora\System\Api::getAuthenticatedUserPublicId(), $oFileInfo, $docKey, $fileuri);
 			}
 		}
