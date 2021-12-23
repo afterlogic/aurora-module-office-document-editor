@@ -7,7 +7,16 @@
 
 namespace Aurora\Modules\OfficeDocumentEditor;
 
+use Afterlogic\DAV\FS\File;
+use Aurora\Api;
+use Afterlogic\DAV\Server;
 use Aurora\System\Application;
+use Aurora\Modules\Core\Module as CoreModule;
+use Aurora\Modules\Files\Module as FilesModule;
+use Aurora\Modules\Files\Classes\FileItem;
+use Aurora\Modules\OfficeDocumentEditor\Exceptions\Exception;
+
+use function Sabre\Uri\split;
 
 /**
  * @license https://www.gnu.org/licenses/agpl-3.0.html AGPL-3.0
@@ -86,15 +95,14 @@ class Module extends \Aurora\System\Module\AbstractModule
 
 		$this->subscribeEvent('System::RunEntry::before', [$this, 'onBeforeFileViewEntry'], 10);
 		$this->subscribeEvent('Files::GetFile', [$this, 'onGetFile'], 10);
-		$this->subscribeEvent('Files::GetItems', array($this, 'onGetItems'), 20000);
-		$this->subscribeEvent('Files::GetFileInfo::after', array($this, 'onAfterGetFileInfo'), 20000);
-
-		$this->subscribeEvent('AddToContentSecurityPolicyDefault', array($this, 'onAddToContentSecurityPolicyDefault'));
+		$this->subscribeEvent('Files::GetItems', [$this, 'onGetItems'], 20000);
+		$this->subscribeEvent('Files::GetFileInfo::after', [$this, 'onAfterGetFileInfo'], 20000);
+		$this->subscribeEvent('AddToContentSecurityPolicyDefault', [$this, 'onAddToContentSecurityPolicyDefault']);
 	}
 
 	public function GetSettings()
 	{
-		\Aurora\System\Api::checkUserRoleIsAtLeast(\Aurora\System\Enums\UserRole::NormalUser);
+		Api::checkUserRoleIsAtLeast(\Aurora\System\Enums\UserRole::NormalUser);
 
 		return [
 			'ExtensionsToView' => $this->getOfficeExtensions()
@@ -173,22 +181,14 @@ class Module extends \Aurora\System\Module\AbstractModule
 		$bResult = false;
 
 		$sTrustedServerHost = $this->getConfig('TrustedServerHost', '');
-		if (empty($sTrustedServerHost))
-		{
+		if (empty($sTrustedServerHost)) {
 			$bResult = true;
-		}
-		else
-		{
-			if (!empty($_SERVER['HTTP_CLIENT_IP']))
-			{
+		} else {
+			if (!empty($_SERVER['HTTP_CLIENT_IP'])) {
 				$ip = $_SERVER['HTTP_CLIENT_IP'];
-			}
-			elseif (!empty($_SERVER['HTTP_X_FORWARDED_FOR']))
-			{
+			} elseif (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
 				$ip = $_SERVER['HTTP_X_FORWARDED_FOR'];
-			}
-			else
-			{
+			} else {
 				$ip = $_SERVER['REMOTE_ADDR'];
 			}
 
@@ -210,34 +210,27 @@ class Module extends \Aurora\System\Module\AbstractModule
 			'file-cache',
 			'mail-attachment'
 		];
-		if (in_array($aArguments['EntryName'], $aEntries))
-		{
+		if (in_array($aArguments['EntryName'], $aEntries)) {
 			$sEntry = (string) \Aurora\System\Router::getItemByIndex(0, '');
 			$sHash = (string) \Aurora\System\Router::getItemByIndex(1, '');
 			$sAction = (string) \Aurora\System\Router::getItemByIndex(2, '');
 
-			$aValues = \Aurora\System\Api::DecodeKeyValues($sHash);
+			$aValues = Api::DecodeKeyValues($sHash);
 
 			$sFileName = isset($aValues['FileName']) ? urldecode($aValues['FileName']) : '';
-			if (empty($sFileName))
-			{
+			if (empty($sFileName)) {
 				$sFileName = isset($aValues['Name']) ? urldecode($aValues['Name']) : '';
 			}
-			if ($sAction === 'view' && $this->isOfficeDocument($sFileName) && !isset($aValues['AuthToken']))
-			{
+			if ($sAction === 'view' && $this->isOfficeDocument($sFileName) && !isset($aValues['AuthToken'])) {
 				$sViewerUrl = './?editor=' . urlencode($sEntry .'/' . $sHash . '/' . $sAction . '/' . time());
 				\header('Location: ' . $sViewerUrl);
-			}
-			else if ($this->isOfficeDocument($sFileName) || $sFileName === 'diff.zip' || $sFileName === 'changes.json')
-			{
-				if ($this->isTrustedRequest())
-				{
+			} else if ($this->isOfficeDocument($sFileName) || $sFileName === 'diff.zip' || $sFileName === 'changes.json') {
+				if ($this->isTrustedRequest()) {
 					$sAuthToken = isset($aValues['AuthToken']) ? $aValues['AuthToken'] : null;
-					if (isset($sAuthToken))
-					{
-						\Aurora\System\Api::setAuthToken($sAuthToken);
-						\Aurora\System\Api::setUserId(
-							\Aurora\System\Api::getAuthenticatedUserId($sAuthToken)
+					if (isset($sAuthToken)) {
+						Api::setAuthToken($sAuthToken);
+						Api::setUserId(
+							Api::getAuthenticatedUserId($sAuthToken)
 						);
 					}
 				}
@@ -258,72 +251,61 @@ class Module extends \Aurora\System\Module\AbstractModule
 		$lastModified = time();
 		$aHistory = [];
 
-		$oUser = \Aurora\System\Api::getAuthenticatedUser();
+		$oUser = Api::getAuthenticatedUser();
 
-		if (isset($fileuri))
-		{
+		if (isset($fileuri))  {
 			$fileuri = \urldecode($fileuri);
 			$aFileuri = \explode('/', $fileuri);
-			if (isset($aFileuri[1]))
-			{
+			if (isset($aFileuri[1])) {
 				$sHash = $aFileuri[1];
-				$aHashValues = \Aurora\System\Api::DecodeKeyValues($sHash);
-				if (!isset($aHashValues['AuthToken']))
-				{
-					$aHashValues['AuthToken'] = \Aurora\System\Api::UserSession()->Set(
+				$aHashValues = Api::DecodeKeyValues($sHash);
+				if (!isset($aHashValues['AuthToken'])) {
+					$aHashValues['AuthToken'] = Api::UserSession()->Set(
 						[
 							'token' => 'auth',
-							'id' => \Aurora\System\Api::getAuthenticatedUserId()
+							'id' => Api::getAuthenticatedUserId()
 						],
 						time(),
 						time() + 60 * 5 // 5 min
 					);
 				}
 			}
-			$sHash = \Aurora\System\Api::EncodeKeyValues($aHashValues);
+			$sHash = Api::EncodeKeyValues($aHashValues);
 			$aFileuri[1] = $sHash;
 			$fileuri = implode('/', $aFileuri);
 			$fileuri = $sFullUrl . '?' . $fileuri;
 		}
 
-		if (isset($sHash))
-		{
-			$aHashValues = \Aurora\System\Api::DecodeKeyValues($sHash);
-			if (isset($aHashValues['FileName']))
-			{
+		if (isset($sHash)) {
+			$aHashValues = Api::DecodeKeyValues($sHash);
+			if (isset($aHashValues['FileName'])) {
 				$filename = $aHashValues['FileName'];
-			}
-			else if (isset($aHashValues['Name']))
-			{
+			} else if (isset($aHashValues['Name'])) {
 				$filename = $aHashValues['Name'];
 			}
-			if (isset($aHashValues['Edit']))
-			{
+			if (isset($aHashValues['Edit'])) {
 				$sMode = 'edit';
 			}
 
-			$sHash = \Aurora\System\Api::EncodeKeyValues($aHashValues);
+			$sHash = Api::EncodeKeyValues($aHashValues);
 			$oFileInfo = null;
-			try
-			{
-				if (isset($aHashValues['UserId'], $aHashValues['Type'], $aHashValues['Path'], $aHashValues['Id']))
-				{
-					$oFileInfo = \Aurora\Modules\Files\Module::Decorator()->GetFileInfo(
+			try {
+				if (isset($aHashValues['UserId'], $aHashValues['Type'], $aHashValues['Path'], $aHashValues['Id'])) {
+					$oFileInfo = FilesModule::Decorator()->GetFileInfo(
 						$aHashValues['UserId'],
 						$aHashValues['Type'],
 						$aHashValues['Path'],
 						$aHashValues['Id']
 					);
 				}
-			}
-			catch (\Exception $oEx) {}
-			if ($oFileInfo)
-			{
+			} catch (\Exception $oEx) {}
+			
+			if ($oFileInfo) {
 				$lastModified = $oFileInfo->LastModified;
 				$docKey = \md5($oFileInfo->RealPath . $lastModified);
 				$oFileInfo->Path = $aHashValues['Path'];
 				$sMode = (isset($oFileInfo->ExtendedProps['SharedWithMeAccess']) && ((int) $oFileInfo->ExtendedProps['SharedWithMeAccess'] === \Afterlogic\DAV\FS\Permission::Write || (int) $oFileInfo->ExtendedProps['SharedWithMeAccess'] === \Afterlogic\DAV\FS\Permission::Reshare)) || (!isset($oFileInfo->ExtendedProps['SharedWithMeAccess']) && $oFileInfo->Owner === $oUser->PublicId) ? $sMode : 'view';
-				$aHistory = $this->getHistory(\Aurora\System\Api::getAuthenticatedUserPublicId(), $oFileInfo, $docKey, $fileuri);
+				$aHistory = $this->getHistory($oFileInfo, $docKey, $fileuri);
 			}
 		}
 
@@ -338,10 +320,8 @@ class Module extends \Aurora\System\Module\AbstractModule
 
 		$callbackUrl = $sFullUrl . '?ode-callback/' . $sHash;
 
-		if (isset($fileuri) && isset($serverPath))
-		{
-			if ($oUser)
-			{
+		if (isset($fileuri) && isset($serverPath)) {
+			if ($oUser) {
 				$uid = (string) $oUser->Id;
 				$uname = !empty($oUser->Name) ? $oUser->Name : $oUser->PublicId;
 				$lang = \Aurora\System\Utils::ConvertLanguageNameToShort($oUser->Language);
@@ -400,16 +380,14 @@ class Module extends \Aurora\System\Module\AbstractModule
 			];
 
 			$oJwt = new Classes\JwtManager($this->getConfig('Secret', ''));
-			if ($oJwt->isJwtEnabled())
-			{
+			if ($oJwt->isJwtEnabled()) {
 				$config['token'] = $oJwt->jwtEncode($config);
 			}
 
 			$sResult = \file_get_contents($this->GetPath().'/templates/Editor.html');
 
-			$iUserId = \Aurora\System\Api::getAuthenticatedUserId();
-			if (0 < $iUserId)
-			{
+			$iUserId = Api::getAuthenticatedUserId();
+			if (0 < $iUserId) {
 				$sResult = strtr($sResult, [
 					'{{DOC_SERV_API_URL}}' => $serverPath . '/web-apps/apps/api/documents/api.js',
 					'{{CONFIG}}' => \json_encode($config),
@@ -420,10 +398,8 @@ class Module extends \Aurora\System\Module\AbstractModule
 				@header('Cache-Control: no-cache, no-store, must-revalidate', true);
 				@header('Pragma: no-cache', true);
 				@header('Expires: 0', true);
-			}
-			else
-			{
-				\Aurora\System\Api::Location('./');
+			} else {
+				Api::Location('./');
 			}
 		}
 
@@ -435,21 +411,30 @@ class Module extends \Aurora\System\Module\AbstractModule
 		$mResult = false;
 		$ext = strtolower(pathinfo($FileName, PATHINFO_EXTENSION));
 		$sFilePath = $this->GetPath() . "/data/new." . $ext;
-		if (file_exists($sFilePath))
-		{
+		if (file_exists($sFilePath)) {
 			$rData = \fopen($sFilePath , "r");
-			$FileName = \Aurora\Modules\Files\Module::Decorator()->GetNonExistentFileName(
-				\Aurora\System\Api::getAuthenticatedUserId(),
+			$FileName = FilesModule::Decorator()->GetNonExistentFileName(
+				Api::getAuthenticatedUserId(),
 				$Type,
 				$Path,
 				$FileName
 			);
-			$mResult = $this->createFile(\Aurora\System\Api::getAuthenticatedUserId(), $Type, $Path, $FileName, $rData);
+			$mResult = $this->createFile(
+				Api::getAuthenticatedUserId(), 
+				$Type, 
+				$Path, 
+				$FileName, 
+				$rData
+			);
 			\fclose($rData);
 
-			if ($mResult)
-			{
-				$mResult = \Aurora\Modules\Files\Module::Decorator()->GetFileInfo(\Aurora\System\Api::getAuthenticatedUserId(), $Type, $Path, $FileName);
+			if ($mResult) {
+				$mResult = FilesModule::Decorator()->GetFileInfo(
+					Api::getAuthenticatedUserId(), 
+					$Type, 
+					$Path, 
+					$FileName
+				);
 			}
 		}
 		return $mResult;
@@ -461,12 +446,9 @@ class Module extends \Aurora\System\Module\AbstractModule
 		$aExtensions = $this->getExtensionsToConvert();
 		$sExtension = pathinfo($FileName, PATHINFO_EXTENSION);
 		$sNewExtension = isset($aExtensions[$sExtension]) ? $aExtensions[$sExtension] : null;
-		if ($sNewExtension === null)
-		{
-			throw new \Aurora\Modules\OfficeDocumentEditor\Exceptions\Exception(Enums\ErrorCodes::ExtensionCannotBeConverted);
-		}
-		else
-		{
+		if ($sNewExtension === null) {
+			throw new Exceptions\Exception(Enums\ErrorCodes::ExtensionCannotBeConverted);
+		} else {
 			$mResult = self::Decorator()->ConvertDocumentToFormat($Type, $Path, $FileName, $sNewExtension);
 		}
 
@@ -476,8 +458,13 @@ class Module extends \Aurora\System\Module\AbstractModule
 	public function ConvertDocumentToFormat($Type, $Path, $FileName, $ToExtension)
 	{
 		$mResult = false;
-		$oFileInfo = \Aurora\Modules\Files\Module::Decorator()->GetFileInfo(\Aurora\System\Api::getAuthenticatedUserId(), $Type, $Path, $FileName);
-		if ($oFileInfo instanceof  \Aurora\Modules\Files\Classes\FileItem)
+		$oFileInfo = FilesModule::Decorator()->GetFileInfo(
+			Api::getAuthenticatedUserId(), 
+			$Type, 
+			$Path, 
+			$FileName
+		);
+		if ($oFileInfo instanceof  FileItem)
 		{
 			$sConvertedDocumentUri = null;
 			$aPathParts = pathinfo($FileName);
@@ -493,22 +480,40 @@ class Module extends \Aurora\System\Module\AbstractModule
 				{
 					$aUrlParts[1] = $this->GetFileTempHash($aUrlParts[1]);
 					$sDocumentUri = Application::getBaseUrl() . \implode('/', $aUrlParts);
-					$this->GetConvertedUri($sDocumentUri, $sFromExtension, $ToExtension, '', false, $sConvertedDocumentUri);
+					$this->GetConvertedUri(
+						$sDocumentUri, 
+						$sFromExtension, 
+						$ToExtension, 
+						'', 
+						false, 
+						$sConvertedDocumentUri
+					);
 					if (!empty($sConvertedDocumentUri))
 					{
 						$rData = \file_get_contents($sConvertedDocumentUri);
 						if ($rData !== false)
 						{
-							$sNewFileName = \Aurora\Modules\Files\Module::Decorator()->GetNonExistentFileName(
-								\Aurora\System\Api::getAuthenticatedUserId(),
+							$sNewFileName = FilesModule::Decorator()->GetNonExistentFileName(
+								Api::getAuthenticatedUserId(),
 								$Type,
 								$Path,
 								$sFileNameWOExt . '.' . $ToExtension
 							);
-							$mResult = $this->createFile(\Aurora\System\Api::getAuthenticatedUserId(), $Type, $Path, $sNewFileName, $rData);
+							$mResult = $this->createFile(
+								Api::getAuthenticatedUserId(), 
+								$Type, 
+								$Path, 
+								$sNewFileName, 
+								$rData
+							);
 							if ($mResult)
 							{
-								$mResult = \Aurora\Modules\Files\Module::Decorator()->GetFileInfo(\Aurora\System\Api::getAuthenticatedUserId(), $Type, $Path, $sNewFileName);
+								$mResult = FilesModule::Decorator()->GetFileInfo(
+									Api::getAuthenticatedUserId(), 
+									$Type, 
+									$Path, 
+									$sNewFileName
+								);
 							}
 
 						}
@@ -523,47 +528,45 @@ class Module extends \Aurora\System\Module\AbstractModule
 
 	protected function GetFileTempHash($sHash)
 	{
-		$aValues = \Aurora\System\Api::DecodeKeyValues($sHash);
+		$aValues = Api::DecodeKeyValues($sHash);
 
 		$sFileName = isset($aValues['FileName']) ? urldecode($aValues['FileName']) : '';
 		if (empty($sFileName))
 		{
 			$sFileName = isset($aValues['Name']) ? urldecode($aValues['Name']) : '';
 		}
-		$aValues['AuthToken'] = \Aurora\System\Api::UserSession()->Set(
+		$aValues['AuthToken'] = Api::UserSession()->Set(
 			[
 				'token' => 'auth',
-				'id' => \Aurora\System\Api::getAuthenticatedUserId()
+				'id' => Api::getAuthenticatedUserId()
 			],
 			time(),
 			time() + 60 * 5 // 5 min
 		);
 
-		return \Aurora\System\Api::EncodeKeyValues($aValues);
+		return Api::EncodeKeyValues($aValues);
 	}
 
 	protected function GetConvertedUri($document_uri, $from_extension, $to_extension, $document_revision_id, $is_async, &$converted_document_uri)
 	{
 		$converted_document_uri = "";
-		$responceFromConvertService = $this->SendRequestToConvertService($document_uri, $from_extension, $to_extension, $document_revision_id, $is_async);
-		$json = json_decode($responceFromConvertService, true);
+		$responceFromConvertService = $this->SendRequestToConvertService(
+			$document_uri, $from_extension, $to_extension, $document_revision_id, $is_async
+		);
+		$json = \json_decode($responceFromConvertService, true);
 
 		$errorElement = isset($json["error"]) ? $json["error"] : null;
-		if ($errorElement != NULL && $errorElement != "")
-		{
+		if ($errorElement != NULL && $errorElement != "") {
 			$this->ProcessConvServResponceError($errorElement);
 		}
 
 		$isEndConvert = $json["endConvert"];
 		$percent = $json["percent"];
 
-		if ($isEndConvert != NULL && $isEndConvert == true)
-		{
+		if ($isEndConvert != NULL && $isEndConvert == true) {
 			$converted_document_uri = $json["fileUrl"];
 			$percent = 100;
-		}
-		else if ($percent >= 100)
-		{
+		} else if ($percent >= 100) {
 			$percent = 99;
 		}
 
@@ -573,21 +576,18 @@ class Module extends \Aurora\System\Module\AbstractModule
 	protected function SendRequestToConvertService($document_uri, $from_extension, $to_extension, $document_revision_id, $is_async)
 	{
 		$title = basename($document_uri);
-		if (empty($title))
-		{
+		if (empty($title)) {
 			$title = \Sabre\DAV\UUIDUtil::getUUID();
 		}
 
-		if (empty($document_revision_id))
-		{
+		if (empty($document_revision_id)) {
 			$document_revision_id = $document_uri;
 		}
 
 		$document_revision_id = $this->GenerateRevisionId($document_revision_id);
 
 		$serverPath = $this->getConfig('DocumentServerUrl' , null);
-		if ($serverPath !== null)
-		{
+		if ($serverPath !== null) {
 			$urlToConverter = $serverPath . '/ConvertService.ashx';
 		}
 
@@ -603,13 +603,10 @@ class Module extends \Aurora\System\Module\AbstractModule
 		$headerToken = "";
 
 		$oJwt = new Classes\JwtManager($this->getConfig('Secret', ''));
-		if ($oJwt->isJwtEnabled())
-		{
+		if ($oJwt->isJwtEnabled()) {
 			$headerToken = $oJwt->jwtEncode([ "payload" => $arr ]);
 			$arr["token"] = $oJwt->jwtEncode($arr);
 		}
-
-		$data = json_encode($arr);
 
 		$opts = [
 			'http' => [
@@ -618,13 +615,12 @@ class Module extends \Aurora\System\Module\AbstractModule
 				'header'=> 	"Content-type: application/json\r\n" .
 							"Accept: application/json\r\n" .
 							(empty($headerToken) ? "" : "Authorization: $headerToken\r\n"),
-				'content' => $data
+				'content' => \json_encode($arr)
 			]
 		];
 
-		if (substr($urlToConverter, 0, strlen("https")) === "https")
-		{
-			$opts['ssl'] = array( 'verify_peer'   => FALSE );
+		if (substr($urlToConverter, 0, strlen("https")) === "https") {
+			$opts['ssl'] = ['verify_peer' => FALSE];
 		}
 
 		$context  = stream_context_create($opts);
@@ -638,8 +634,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 		$errorMessageTemplate = "Error occurred in the document service: ";
 		$errorMessage = '';
 
-		switch ($errorCode)
-		{
+		switch ($errorCode) {
 			case -8:
 				$errorMessage = $errorMessageTemplate . "Error document VKey";
 				break;
@@ -671,7 +666,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 				break;
 		}
 
-		throw new \Exception($errorMessage);
+		throw new Exception($errorMessage);
 	}
 
 	protected function GenerateRevisionId($expected_key)
@@ -686,120 +681,120 @@ class Module extends \Aurora\System\Module\AbstractModule
 	{
 		$result = ["error" => 0];
 
-		if (($body_stream = file_get_contents("php://input")) === FALSE)
-		{
+		if (($body_stream = file_get_contents("php://input")) === FALSE) {
 			$result["error"] = "Bad Request";
-		}
-		else
-		{
+		} else {
 			$data = json_decode($body_stream, TRUE);
 
 			$oJwt = new Classes\JwtManager($this->getConfig('Secret', ''));
-			if ($oJwt->isJwtEnabled())
-			{
+			if ($oJwt->isJwtEnabled()) {
 				$inHeader = false;
 				$token = "";
-				if (!empty($data["token"]))
-				{
+				if (!empty($data["token"])) {
 					$token = $oJwt->jwtDecode($data["token"]);
-				}
-				elseif (!empty($_SERVER['HTTP_AUTHORIZATION']))
-				{
+				} elseif (!empty($_SERVER['HTTP_AUTHORIZATION'])) {
 					$token = $oJwt->jwtDecode(substr($_SERVER['HTTP_AUTHORIZATION'], strlen("Bearer ")));
 					$inHeader = true;
-				}
-				else
-				{
+				} else {
 					$result["error"] = "Expected JWT";
 				}
-				if (empty($token))
-				{
+				if (empty($token)) {
 					$result["error"] = "Invalid JWT signature";
-				}
-				else
-				{
+				} else {
 					$data = json_decode($token, true);
 					if ($inHeader) $data = $data["payload"];
 				}
 			}
 
-			if ($data["status"] == 2)
-			{
+			if ($data["status"] == 2) {
 				$sHash = (string) \Aurora\System\Router::getItemByIndex(1, '');
-				if (!empty($sHash))
-				{
-					$aHashValues = \Aurora\System\Api::DecodeKeyValues($sHash);
+				if (!empty($sHash)) {
+					$aHashValues = Api::DecodeKeyValues($sHash);
 
-					\Aurora\System\Api::skipCheckUserRole(true);
-					$oFileInfo = \Aurora\Modules\Files\Module::Decorator()->GetFileInfo(
+					$prevState = Api::skipCheckUserRole(true);
+					$oFileInfo = FilesModule::Decorator()->GetFileInfo(
 						$aHashValues['UserId'],
 						$aHashValues['Type'],
 						$aHashValues['Path'],
 						$aHashValues['Name']
 					);
-					\Aurora\System\Api::skipCheckUserRole(false);
-					if ($oFileInfo instanceof \Aurora\Modules\Files\Classes\FileItem && $this->isOfficeDocument($oFileInfo->Name))
-					{
+					if ($oFileInfo instanceof FileItem && $this->isOfficeDocument($oFileInfo->Name)) {
 						if ((isset($oFileInfo->ExtendedProps['SharedWithMeAccess']) && (int) $oFileInfo->ExtendedProps['SharedWithMeAccess'] === \Afterlogic\DAV\FS\Permission::Write) || !isset($oFileInfo->ExtendedProps['SharedWithMeAccess'])
-							&& !$this->isReadOnlyDocument($oFileInfo->Name))
-						{
+							&& !$this->isReadOnlyDocument($oFileInfo->Name)) {
 							$rData = \file_get_contents($data["url"]);
-							if ($rData !== false)
-							{
-								if ($this->getConfig('EnableHistory', false))
-								{
-									$histDir = $this->getHistoryDir($oFileInfo);
-									$curVer = $this->getFileVersion($histDir);
-									$verDir = $this->getVersionDir($histDir, $curVer + 1, true);
-									$ext = strtolower(pathinfo($oFileInfo->Name, PATHINFO_EXTENSION));
+							if ($rData !== false) {
+								if ($this->getConfig('EnableHistory', false)) {							
+									$histDir = $this->getHistoryDir(
+										$oFileInfo->TypeStr, 
+										$oFileInfo->Path, 
+										$oFileInfo->Name,
+										true
+									);
+									if ($histDir) {
+										$curVer = $histDir->getFileVersion();
+										$verDir = $histDir->getVersionDir($curVer + 1, true);
+										$ext = strtolower(pathinfo($oFileInfo->Name, PATHINFO_EXTENSION));
 
-									// save previous version
+										// save previous version
+										Api::skipCheckUserRole(true);
 
-									\Aurora\System\Api::skipCheckUserRole(true);
+										list(, $sOwnerUserPublicId) = split($verDir->getOwner());
+										$iOwnerUserId = Api::getUserIdByPublicId($sOwnerUserPublicId);
 
-									if (!isset($oFileInfo->ExtendedProps['Created']) && $curVer == 0)
-									{
-										\Aurora\Modules\Files\Module::Decorator()->UpdateExtendedProps(
-											$aHashValues['UserId'],
+										if (!isset($oFileInfo->ExtendedProps['Created']) && $curVer == 0) {
+											FilesModule::Decorator()->UpdateExtendedProps(
+												$iOwnerUserId,
+												$aHashValues['Type'],
+												$oFileInfo->Path,
+												$oFileInfo->Name,
+												[
+													'Created' => $oFileInfo->LastModified
+												]
+											);
+										}
+										$GLOBALS['__SKIP_HISTORY__'] = true;
+
+										FilesModule::Decorator()->Copy(
+											$iOwnerUserId,
+											$aHashValues['Type'],
 											$aHashValues['Type'],
 											$oFileInfo->Path,
-											$oFileInfo->Name,
+											$verDir->getRelativePath() . '/' . $verDir->getName(),
 											[
-												'Created' => $oFileInfo->LastModified
+												[
+													'FromType' => $aHashValues['Type'],
+													'ToType' => $aHashValues['Type'],
+													'FromPath' => $oFileInfo->Path,
+													'ToPath' => $verDir->getRelativePath() . '/' . $verDir->getName(),
+													'Name' => $oFileInfo->Name,
+													'NewName' => 'prev.' . $ext
+												]
 											]
 										);
+										unset($GLOBALS['__SKIP_HISTORY__']);
 									}
-									$GLOBALS['__SKIP_HISTORY__'] = true;
+								}
 
-									\Aurora\Modules\Files\Module::Decorator()->Copy(
-										$aHashValues['UserId'],
-										$aHashValues['Type'],
-										$aHashValues['Type'],
-										$oFileInfo->Path,
-										$verDir,
-										[
-											[
-												'FromType' => $aHashValues['Type'],
-												'ToType' => $aHashValues['Type'],
-												'FromPath' => $oFileInfo->Path,
-												'ToPath' => $verDir,
-												'Name' => $oFileInfo->Name,
-												'NewName' => 'prev.' . $ext
-											]
-										]
+								$mResult = $this->createFile(
+									$iOwnerUserId, 
+									$aHashValues['Type'], 
+									$aHashValues['Path'], 
+									$aHashValues['Name'], 
+									$rData
+								);
+
+								if ($mResult !== false && $this->getConfig('EnableHistory', false)) {
+									$this->updateHistory(
+										$iOwnerUserId, 
+										$aHashValues['Type'], 
+										$verDir->getRelativePath() . '/' . $verDir->getName(), 
+										$data
 									);
-									unset($GLOBALS['__SKIP_HISTORY__']);
 								}
-								$mResult = $this->createFile((int) $aHashValues['UserId'], $aHashValues['Type'], $aHashValues['Path'], $aHashValues['Name'], $rData);
-
-								if ($mResult !== false && $this->getConfig('EnableHistory', false))
-								{
-									$this->updateHistory((int) $aHashValues['UserId'], $aHashValues['Type'], $verDir, $data);
-								}
-								\Aurora\System\Api::skipCheckUserRole(false);
 							}
 						}
 					}
+					Api::skipCheckUserRole($prevState);
 				}
 			}
 		}
@@ -813,8 +808,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 	 */
 	public function onGetFile(&$aArguments, &$aResult)
 	{
-		if ($this->isOfficeDocument($aArguments['Name']))
-		{
+		if ($this->isOfficeDocument($aArguments['Name'])) {
 			$aArguments['NoRedirect'] = true;
 		}
 	}
@@ -827,31 +821,24 @@ class Module extends \Aurora\System\Module\AbstractModule
 	 */
 	public function onGetItems($aArgs, &$mResult)
 	{
-		if (is_array($mResult))
-		{
-			foreach ($mResult as $oItem)
-			{
-				if ($oItem instanceof \Aurora\Modules\Files\Classes\FileItem && $this->isOfficeDocument($oItem->Name))
-				{
+		if (is_array($mResult)) {
+			foreach ($mResult as $oItem) {
+				if ($oItem instanceof FileItem && $this->isOfficeDocument($oItem->Name)) {
 					$bEncrypted = isset($oItem->ExtendedProps['InitializationVector']);
 					$bAccessSet = isset($oItem->ExtendedProps['SharedWithMeAccess']);
 					$bHasWriteAccess = !$bAccessSet || ($bAccessSet && ((int) $oItem->ExtendedProps['SharedWithMeAccess'] === \Afterlogic\DAV\FS\Permission::Write || (int) $oItem->ExtendedProps['SharedWithMeAccess'] === \Afterlogic\DAV\FS\Permission::Reshare));
-					if (!$bEncrypted && $bHasWriteAccess)
-					{
-						if ($this->documentCanBeConverted($oItem->Name))
-						{
+					if (!$bEncrypted && $bHasWriteAccess) {
+						if ($this->documentCanBeConverted($oItem->Name)) {
 							$oItem->UnshiftAction([
 								'convert' => [
 									'url' => ''
 								]
 							]);
-						}
-						else if ($this->documentCanBeEdited($oItem->Name))
-						{
+						} else if ($this->documentCanBeEdited($oItem->Name)) {
 							$sHash = $oItem->getHash();
-							$aHashValues = \Aurora\System\Api::DecodeKeyValues($sHash);
+							$aHashValues = Api::DecodeKeyValues($sHash);
 							$aHashValues['Edit'] = true;
-							$sHash = \Aurora\System\Api::EncodeKeyValues($aHashValues);
+							$sHash = Api::EncodeKeyValues($aHashValues);
 							$oItem->UnshiftAction([
 								'edit' => [
 									'url' => '?download-file/' . $sHash .'/view'
@@ -866,17 +853,14 @@ class Module extends \Aurora\System\Module\AbstractModule
 
 	public function onAfterGetFileInfo($aArgs, &$mResult)
 	{
-		if ($mResult)
-		{
-			if ($mResult instanceof \Aurora\Modules\Files\Classes\FileItem && $this->isOfficeDocument($mResult->Name))
-			{
+		if ($mResult) {
+			if ($mResult instanceof FileItem && $this->isOfficeDocument($mResult->Name)) {
 				if ((isset($mResult->ExtendedProps['SharedWithMeAccess']) && ((int) $mResult->ExtendedProps['SharedWithMeAccess'] === \Afterlogic\DAV\FS\Permission::Write || (int) $mResult->ExtendedProps['SharedWithMeAccess'] === \Afterlogic\DAV\FS\Permission::Reshare)) || !isset($mResult->ExtendedProps['SharedWithMeAccess'])
-					&& !$this->isReadOnlyDocument($mResult->Name))
-				{
+					&& !$this->isReadOnlyDocument($mResult->Name)) {
 					$sHash = $mResult->getHash();
-					$aHashValues = \Aurora\System\Api::DecodeKeyValues($sHash);
+					$aHashValues = Api::DecodeKeyValues($sHash);
 					$aHashValues['Edit'] = true;
-					$sHash = \Aurora\System\Api::EncodeKeyValues($aHashValues);
+					$sHash = Api::EncodeKeyValues($aHashValues);
 					$mResult->UnshiftAction([
 						'edit' => [
 							'url' => '?download-file/' . $sHash .'/view'
@@ -890,133 +874,98 @@ class Module extends \Aurora\System\Module\AbstractModule
 	public function onAddToContentSecurityPolicyDefault($aArgs, &$aAddDefault)
 	{
 		$sUrl = $this->getConfig('DocumentServerUrl' , null);
-		if (!empty($sUrl))
-		{
+		if (!empty($sUrl)) {
 			$aAddDefault[] = $sUrl;
 		}
 	}
 
 
 	// History
-
 	public function RestoreFromHistory($Url, $Version)
 	{
 
 	}
 
-	protected function getHistoryDir($oFileInfo)
+	protected function getHistoryDir($sType, $sPath, $sName, $bCreateIfNotExists = false)
 	{
-		$mResult = false;
-		$sType = $oFileInfo->TypeStr;
-		$sPath = $oFileInfo->Path;
-		$sName = $oFileInfo->Name;
-
-		$oServer = \Afterlogic\DAV\Server::getInstance();
-		$oServer->setUser(\Aurora\System\Api::getAuthenticatedUserPublicId());
-		$oItem = $oServer->tree->getNodeForPath('files/' . $sType . $sPath);
-		if ($oItem instanceof \Afterlogic\DAV\FS\Directory || $oItem instanceof \Afterlogic\DAV\FS\Root)
-		{
-			if (!$oItem->childExists($sName . '.hist'))
-			{
-				$oItem->createDirectory($sName . '.hist');
-			}
-			$mResult = 'files/' . $sType . $sPath . '/' . $sName . '.hist';
-		}
-
-		return $mResult;
-	}
-
-	protected function getFileVersion($histDir)
-	{
-		$ver = 0;
-
-		$oServer = \Afterlogic\DAV\Server::getInstance();
-		$oServer->setUser(\Aurora\System\Api::getAuthenticatedUserPublicId());
-		$oItem = $oServer->tree->getNodeForPath($histDir);
-		if ($oItem instanceof \Afterlogic\DAV\FS\Directory)
-		{
-			$aChildren = $oItem->getChildren();
-
-			foreach ($aChildren as $oChild)
-			{
-				if ($oChild instanceof \Afterlogic\DAV\FS\Directory)
-				{
-					$ver++;
-				}
+		$oHistNode = false;
+		/**
+		 * @var $oNode
+		 */
+		$oNode = Server::getNodeForPath('files/' . $sType . $sPath . '/' . $sName);
+		if ($oNode instanceof File) {
+			$oHistNode = $oNode->getHistoryDirectory();
+			if (!$oHistNode && $bCreateIfNotExists) {
+				$oParentNode = Server::getNodeForPath('files/' . $sType . $sPath);
+				$oParentNode->createDirectory($sName . '.hist');
+				$oHistNode = $oNode->getHistoryDirectory();
 			}
 		}
 
-		return $ver;
+		return $oHistNode;
 	}
 
-	protected function getVersionDir($histDir, $version, $createdIsNotExists = false)
-	{
-		$oServer = \Afterlogic\DAV\Server::getInstance();
-		$oServer->setUser(\Aurora\System\Api::getAuthenticatedUserPublicId());
-		$oItem = $oServer->tree->getNodeForPath($histDir);
-		if ($oItem instanceof \Afterlogic\DAV\FS\Directory)
-		{
-			if ($createdIsNotExists && !$oItem->childExists($version))
-			{
-				$oItem->createDirectory($version);
-			}
-		}
-
-		list($dir) = \Sabre\Uri\split($histDir);
-		list($sFile, $sStorage) = explode('/', $dir);
-		$sRelativePath = str_replace($sFile . '/' . $sStorage, '', $dir);
-
-		return $sRelativePath . '/' . $oItem->getName() . '/' . $version;
-	}
-
-	protected function getHistory($sUserPublicId, $oFileInfo, $docKey, $sUrl)
+	protected function getHistory($oFileInfo, $docKey, $sUrl)
 	{
 		$result = [];
+		$curVer = 0;
+		$histDir = $this->getHistoryDir($oFileInfo->TypeStr, $oFileInfo->Path, $oFileInfo->Name);
+		if ($histDir) {
+			$curVer = $histDir->getFileVersion();
+		}
 
-		$histDir = $this->getHistoryDir($oFileInfo);
-
-		$curVer = $this->getFileVersion($histDir);
-		if ($curVer > 0)
-		{
+		if ($curVer > 0) {
 			$hist = [];
 			$histData = [];
-			$oUser = \Aurora\Modules\Core\Module::getInstance()->GetUserByPublicId($oFileInfo->Owner);
+			$oUser = CoreModule::getInstance()->GetUserByPublicId($oFileInfo->Owner);
 
-			for ($i = 0; $i <= $curVer; $i++)
-			{
+			for ($i = 0; $i <= $curVer; $i++) {
 				$obj = [];
 				$dataObj = [];
 
-//				$this->getNextVersion();
-				$verDir = $this->getVersionDir($histDir, $i + 1);
+				$verDir = $histDir->getVersionDir($i + 1);
 
-				$key = $i == $curVer ? $docKey : $this->getFileContent($sUserPublicId, $oFileInfo->TypeStr . $verDir . '/key.txt');
+				$key = false;
 
-				if ($key === false)
-				{
+				if ($i == $curVer) {
+					$key = $docKey;
+				} else {
+					if ($verDir && $verDir->childExists('key.txt')) {
+						$oKeyFile = $verDir->getChild('key.txt');
+						if ($oKeyFile instanceof \Afterlogic\DAV\FS\File) {
+							$mKeyData = $oKeyFile->get(false);
+							if (is_resource($mKeyData)) {
+								$key = \stream_get_contents($mKeyData);
+							}
+						}
+					} else {
+						$key = false;
+					}
+				}
+
+				if ($key === false) {
 					continue;
 				}
 				$obj["key"] = $key;
 				$obj["version"] = $i + 1;
 
-				if ($i === 0)
-				{
+				if ($i === 0) {
 					$ext = strtolower(pathinfo($oFileInfo->Name, PATHINFO_EXTENSION));
-					$aPrevFileExtendedProps = \Aurora\Modules\Files\Module::Decorator()->GetExtendedProps(
+					list(, $sUserPublicId) = split($verDir->getOwner());
+					$prevState = Api::skipCheckUserRole(true);
+					$aPrevFileExtendedProps = FilesModule::Decorator()->GetExtendedProps(
 						$sUserPublicId,
 						$oFileInfo->TypeStr,
-						$verDir,
+						$verDir->getRelativePath() . '/' . $verDir->getName(),
 						'prev.' . $ext
 					);
-					if (isset($aPrevFileExtendedProps['Created']))
-					{
-					 	$obj["created"] =  $this->convetToUserTime(
+					Api::skipCheckUserRole($prevState);
+					if (isset($aPrevFileExtendedProps['Created'])) {
+						$obj["created"] =  $this->convetToUserTime(
 							$oUser,
 							date("Y-m-d H:i:s", $aPrevFileExtendedProps['Created'])
 						);
-					}
-					else
-					{
+					} else {
 						$obj["created"] = '';
 					}
 					$obj["user"] = [
@@ -1025,20 +974,33 @@ class Module extends \Aurora\System\Module\AbstractModule
 					];
 				}
 
-				if ($i != $curVer)
-				{
+				if ($i != $curVer) {
 					$ext = strtolower(pathinfo($oFileInfo->Name, PATHINFO_EXTENSION));
 
-					$sUrl = $this->getDownloadUrl(\Aurora\System\Api::getAuthenticatedUserId(), $oFileInfo->TypeStr, $verDir, 'prev.' . $ext);
+					$sUrl = $this->getDownloadUrl(
+						Api::getUserIdByPublicId($sUserPublicId), 
+						$oFileInfo->TypeStr, 
+						$verDir->getRelativePath() . '/' . $verDir->getName(), 
+						'prev.' . $ext
+					);
 				}
 
 				$dataObj["key"] = $key;
 				$dataObj["url"] = $sUrl;
-				$dataObj["version"] = $i+1;
+				$dataObj["version"] = $i + 1;
 
-				if ($i > 0)
-				{
-					$changes = json_decode($this->getFileContent($sUserPublicId, $oFileInfo->TypeStr . $this->getVersionDir($histDir, $i) . '/changes.json'), true);
+				if ($i > 0) {
+					$changes = false;
+					$verDirPrev = $histDir->getVersionDir($i);
+					if ($verDirPrev && $verDirPrev->childExists('changes.json')) {
+						$oChangesFile = $verDirPrev->getChild('changes.json');
+						if ($oChangesFile instanceof \Afterlogic\DAV\FS\File) {
+							$mChangesFileData = $oChangesFile->get(false);
+							if (is_resource($mChangesFileData)) {
+								$changes = \json_decode(\stream_get_contents($mChangesFileData), true);
+							}
+						}
+					}
 
 					if (!$changes) {
 						continue;
@@ -1053,8 +1015,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 					);
 					$obj["user"] = $change["user"];
 
-					if (isset($histData[$i]))
-					{
+					if (isset($histData[$i])) {
 						$prev = $histData[$i];
 						$dataObj["previous"] = [
 							"key" => $prev["key"],
@@ -1062,23 +1023,27 @@ class Module extends \Aurora\System\Module\AbstractModule
 						];
 					}
 
-					$dataObj["changesUrl"] = $this->getDownloadUrl(\Aurora\System\Api::getAuthenticatedUserId(), $oFileInfo->TypeStr, $this->getVersionDir($histDir, $i), 'diff.zip');
+					$dataObj["changesUrl"] = $this->getDownloadUrl(
+						Api::getUserIdByPublicId($sUserPublicId), 
+						$oFileInfo->TypeStr, 
+						$histDir->getVersionDir($i)->getRelativePath() . '/' . $verDirPrev->getName(), 'diff.zip'
+					);
 				}
 
 				array_push($hist, $obj);
 				$oJwt = new Classes\JwtManager($this->getConfig('Secret', ''));
-				if ($oJwt->isJwtEnabled())
-				{
+				if ($oJwt->isJwtEnabled()) {
 					$dataObj['token'] = $oJwt->jwtEncode($dataObj);
 				}
-				$histData[$i+1] = $dataObj;
+				$histData[$i + 1] = $dataObj;
 			}
 
 			array_push($result, [
 					"currentVersion" => $curVer + 1,
 					"history" => $hist
 				],
-				$histData);
+				$histData
+			);
 		}
 
 		return $result;
@@ -1087,18 +1052,15 @@ class Module extends \Aurora\System\Module\AbstractModule
 	protected function updateHistory($iUserId, $sType, $sPath, $data)
 	{
 		$rChangesData = \file_get_contents($data["changesurl"]);
-		if ($rChangesData !== false)
-		{
+		if ($rChangesData !== false) {
 			$this->createFile($iUserId, $sType, $sPath, 'diff.zip', $rChangesData);
 		}
 
 		$histData = isset($data["changeshistory"]) ? $data["changeshistory"] : '';
-		if (empty($histData))
-		{
+		if (empty($histData)) {
 		 	$histData = json_encode($data["history"], JSON_PRETTY_PRINT);
 		}
-		if (!empty($histData))
-		{
+		if (!empty($histData)) {
 			$this->createFile($iUserId, $sType, $sPath, 'changes.json', $histData);
 		}
 		$this->createFile($iUserId, $sType, $sPath, 'key.txt', $data['key']);
@@ -1128,51 +1090,22 @@ class Module extends \Aurora\System\Module\AbstractModule
 		return $mResult;
 	}
 
-	protected function getFileContent($sUserPublicId, $sFullPath)
-	{
-		$mResult = false;
-		$oServer = \Afterlogic\DAV\Server::getInstance();
-		$oServer->setUser($sUserPublicId);
-		try
-		{
-			$oFile = $oServer->tree->getNodeForPath('files/' . $sFullPath);
-
-			if ($oFile instanceof \Afterlogic\DAV\FS\File)
-			{
-				$mResult = $oFile->get(false);
-				if (is_resource($mResult))
-				{
-					$mResult = \stream_get_contents($mResult);
-				}
-			}
-		}
-		catch (\Exception $oEx) {}
-
-		return $mResult;
-	}
-
 	protected function getDownloadUrl($iUserId, $sType, $sPath, $sName)
 	{
-		$sHash = \Aurora\System\Api::EncodeKeyValues([
+		$sHash = Api::EncodeKeyValues([
 			'UserId' =>  $iUserId,
 			'Id' => $sName,
 			'Type' => $sType,
 			'Path' => $sPath,
 			'Name' => $sName,
-			'FileName' => $sName
-		]);
-
-		$sFullUrl = Application::getBaseUrl();
-		$aHash = \Aurora\System\Api::DecodeKeyValues($sHash);
-		$aHash['AuthToken'] = \Aurora\System\Api::UserSession()->Set(
-			[
+			'FileName' => $sName,
+			'AuthToken' => Api::UserSession()->Set([
 				'token' => 'auth',
 				'id' => $iUserId
-			]
-		);
-		$sHash = \Aurora\System\Api::EncodeKeyValues($aHash);
+			])	
+		]);
 
-		return $sFullUrl . '?download-file/' . $sHash;
+		return Application::getBaseUrl() . '?download-file/' . $sHash;
 	}
 
 	protected function convetToUserTime($oUser, $sTime)
