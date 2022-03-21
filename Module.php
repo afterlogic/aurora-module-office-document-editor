@@ -328,7 +328,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 			}
 
 			$config = [
-				"type" => empty($_GET["type"]) ? "desktop" : $_GET["type"],
+				"type" => Api::IsMobileApplication() ? "mobile" : 'desktop',
 				"documentType" => $this->getDocumentType($filename),
 				"document" => [
 					"title" => $filename,
