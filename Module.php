@@ -15,6 +15,7 @@ use Aurora\Modules\Core\Module as CoreModule;
 use Aurora\Modules\Files\Module as FilesModule;
 use Aurora\Modules\Files\Classes\FileItem;
 use Aurora\Modules\OfficeDocumentEditor\Exceptions\Exception;
+use Aurora\System\Enums\FileStorageType;
 
 use function Sabre\Uri\split;
 
@@ -304,7 +305,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 				$lastModified = $oFileInfo->LastModified;
 				$docKey = \md5($oFileInfo->RealPath . $lastModified);
 				$oFileInfo->Path = $aHashValues['Path'];
-				$sMode = (isset($oFileInfo->ExtendedProps['SharedWithMeAccess']) && ((int) $oFileInfo->ExtendedProps['SharedWithMeAccess'] === \Afterlogic\DAV\FS\Permission::Write || (int) $oFileInfo->ExtendedProps['SharedWithMeAccess'] === \Afterlogic\DAV\FS\Permission::Reshare)) || (!isset($oFileInfo->ExtendedProps['SharedWithMeAccess']) && $oFileInfo->Owner === $oUser->PublicId) ? $sMode : 'view';
+				$sMode = (isset($oFileInfo->ExtendedProps['SharedWithMeAccess']) && ((int) $oFileInfo->ExtendedProps['SharedWithMeAccess'] === \Afterlogic\DAV\FS\Permission::Write || (int) $oFileInfo->ExtendedProps['SharedWithMeAccess'] === \Afterlogic\DAV\FS\Permission::Reshare)) || (!isset($oFileInfo->ExtendedProps['SharedWithMeAccess']) && $oFileInfo->Owner === $oUser->PublicId) || ($oFileInfo->TypeStr === FileStorageType::Corporate) ? $sMode : 'view';
 				$aHistory = $this->getHistory($oFileInfo, $docKey, $fileuri);
 			}
 		}
