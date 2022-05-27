@@ -1116,7 +1116,9 @@ class Module extends \Aurora\System\Module\AbstractModule
 			$sTime,
 			new \DateTimeZone('UTC')
 		);
-		$dt->setTimezone(new \DateTimeZone($oUser->DefaultTimeZone));
+		if (!empty($oUser->DefaultTimeZone)) {
+			$dt->setTimezone(new \DateTimeZone($oUser->DefaultTimeZone));
+		}
 
 		return $dt->format("Y-m-d H:i:s");
 	}
