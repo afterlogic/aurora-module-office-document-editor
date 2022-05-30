@@ -309,6 +309,8 @@ class Module extends \Aurora\System\Module\AbstractModule
 				$aHistory = $this->getHistory($oFileInfo, $docKey, $fileuri);
 			} else if (isset($aHashValues['FileName'])){
 				$docKey = \md5($aHashValues['FileName'] . time());
+			} else if (isset($aHashValues['Name'])){
+				$docKey = \md5($aHashValues['Name'] . time());
 			}
 		}
 
