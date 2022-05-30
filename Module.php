@@ -307,6 +307,8 @@ class Module extends \Aurora\System\Module\AbstractModule
 				$oFileInfo->Path = $aHashValues['Path'];
 				$sMode = (isset($oFileInfo->ExtendedProps['SharedWithMeAccess']) && ((int) $oFileInfo->ExtendedProps['SharedWithMeAccess'] === \Afterlogic\DAV\FS\Permission::Write || (int) $oFileInfo->ExtendedProps['SharedWithMeAccess'] === \Afterlogic\DAV\FS\Permission::Reshare)) || (!isset($oFileInfo->ExtendedProps['SharedWithMeAccess']) && $oFileInfo->Owner === $oUser->PublicId) || ($oFileInfo->TypeStr === FileStorageType::Corporate) ? $sMode : 'view';
 				$aHistory = $this->getHistory($oFileInfo, $docKey, $fileuri);
+			} else if (isset($aHashValues['FileName'])){
+				$docKey = \md5($aHashValues['FileName'] . time());
 			}
 		}
 
