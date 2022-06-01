@@ -711,7 +711,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 				}
 			}
 
-			if ($data["status"] == 2) {
+			if (($data["status"] == 2)||($data["status"] == 6)) {
 				$sHash = (string) \Aurora\System\Router::getItemByIndex(1, '');
 				if (!empty($sHash)) {
 					$aHashValues = Api::DecodeKeyValues($sHash);
