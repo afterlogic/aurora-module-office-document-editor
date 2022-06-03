@@ -957,14 +957,13 @@ class Module extends \Aurora\System\Module\AbstractModule
 				if ($i === 0) {
 					$ext = strtolower(pathinfo($oFileInfo->Name, PATHINFO_EXTENSION));
 					list(, $sUserPublicId) = split($verDir->getOwner());
-					$prevState = Api::skipCheckUserRole(true);
-					$aPrevFileExtendedProps = FilesModule::Decorator()->GetExtendedProps(
-						$sUserPublicId,
-						$oFileInfo->TypeStr,
-						$verDir->getRelativePath() . '/' . $verDir->getName(),
-						'prev.' . $ext
-					);
-					Api::skipCheckUserRole($prevState);
+
+					$prevDoc = $verDir->getChild('prev.' . $ext);
+					$aPrevFileExtendedProps = [];
+					if ($prevDoc) {
+						$aPrevFileExtendedProps = $prevDoc->getProperty('ExtendedProps');
+					}
+					
 					if (isset($aPrevFileExtendedProps['Created'])) {
 						$obj["created"] =  $this->convetToUserTime(
 							$oUser,
@@ -983,8 +982,10 @@ class Module extends \Aurora\System\Module\AbstractModule
 					$ext = strtolower(pathinfo($oFileInfo->Name, PATHINFO_EXTENSION));
 
 					$sUrl = $this->getDownloadUrl(
-						Api::getUserIdByPublicId($sUserPublicId), 
-						$oFileInfo->TypeStr, 
+						//Api::getUserIdByPublicId($sUserPublicId), 
+						Api::getUserIdByPublicId($verDir->getUser()), 
+//						$oFileInfo->TypeStr, 
+						$verDir->getStorage(),
 						$verDir->getRelativePath() . '/' . $verDir->getName(), 
 						'prev.' . $ext
 					);
@@ -1029,8 +1030,10 @@ class Module extends \Aurora\System\Module\AbstractModule
 					}
 
 					$dataObj["changesUrl"] = $this->getDownloadUrl(
-						Api::getUserIdByPublicId($sUserPublicId), 
-						$oFileInfo->TypeStr, 
+						//Api::getUserIdByPublicId($sUserPublicId),
+						Api::getUserIdByPublicId($histDir->getUser()),
+						//$oFileInfo->TypeStr,
+						$histDir->getStorage(),
 						$histDir->getVersionDir($i)->getRelativePath() . '/' . $verDirPrev->getName(), 'diff.zip'
 					);
 				}
@@ -1106,7 +1109,8 @@ class Module extends \Aurora\System\Module\AbstractModule
 			'FileName' => $sName,
 			'AuthToken' => Api::UserSession()->Set([
 				'token' => 'auth',
-				'id' => $iUserId
+				'id' => $iUserId,
+				't' => time(),
 			])	
 		]);
 
