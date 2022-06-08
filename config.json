@@ -1,118 +1,118 @@
 {
-  "Disabled": [
-    false,
-    "bool"
-  ],
-  "Disabled_Description": [
-    "",
-    "string"
-  ],
-  "IncludeInMobile": [
-    true,
-    "bool"
-  ],
-  "IncludeInMobile_Description": [
-    "",
-    "string"
-  ],
-  "ExtensionsToView": [
-    [
-      "pdf",
-      "rtf",
-      "csv",
-      "txt",
-      "html",
-      "htm",
-      "mht",
-      "djvu",
-      "fb2",
-      "epub",
-      "xps"
-    ],
-    "array"
-  ],
-  "ExtensionsToView_Description": [
-    "",
-    "string"
-  ],
-  "ExtensionsToConvert": [
-    {
-      "doc": "docx",
-      "xls": "xlsx",
-      "pps": "pptx",
-      "ppt": "pptx",
-      "odt": "docx",
-      "odp": "pptx",
-      "ods": "xlsx",
-      "xlt": "xlsx",
-      "fods": "xlsx",
-      "ots": "xlsx",
-      "ott": "docx",
-      "fodt": "docx",
-      "dot": "docx",
-      "otp": "pptx",
-      "fodp": "pptx",
-      "pot": "pptx",
-      "docm": "docx",
-      "dotx": "docx",
-      "dotm": "docx",
-      "xltx": "xlsx",
-      "xltm": "xlsx",
-      "xlsm": "xlsx",
-      "potx": "pptx",
-      "potm": "pptx",
-      "pptm": "pptx",
-      "ppsx": "pptx",
-      "ppsm": "pptx"
-    },
-    "array"
-  ],
-  "ExtensionsToConvert_Description": [
-    "",
-    "string"
-  ],
-  "ExtensionsToEdit": [
-    [
-      "docx",
-      "xlsx",
-      "pptx"
-    ],
-    "array"
-  ],
-  "ExtensionsToEdit_Description": [
-    "",
-    "string"
-  ],
-  "DocumentServerUrl": [
-    "",
-    "string"
-  ],
-  "DocumentServerUrl_Description": [
-    "",
-    "string"
-  ],
-  "Secret": [
-    "",
-    "string"
-  ],
-  "Secret_Description": [
-    "",
-    "string"
-  ],
-  "EnableHistory": [
-    true,
-    "bool"
-  ],
-  "EnableHistory_Description": [
-    "",
-    "string"
-  ],
-  "TrustedServerHost": [
-    "",
-    "string"
-  ],
-  "TrustedServerHost_Description": [
-    "",
-    "string"
-  ]
+	"Disabled": [
+		false,
+		"bool"
+	],
+	"Disabled_Description": [
+		"",
+		"string"
+	],
+	"IncludeInMobile": [
+		true,
+		"bool"
+	],
+	"IncludeInMobile_Description": [
+		"",
+		"string"
+	],
+	"ExtensionsToView": [
+		[
+			"pdf",
+			"rtf",
+			"csv",
+			"txt",
+			"html",
+			"htm",
+			"mht",
+			"djvu",
+			"fb2",
+			"epub",
+			"xps"
+		],
+		"array"
+	],
+	"ExtensionsToView_Description": [
+		"",
+		"string"
+	],
+	"ExtensionsToConvert": [
+		{
+			"doc": "docx",
+			"xls": "xlsx",
+			"pps": "pptx",
+			"ppt": "pptx",
+			"odt": "docx",
+			"odp": "pptx",
+			"ods": "xlsx",
+			"xlt": "xlsx",
+			"fods": "xlsx",
+			"ots": "xlsx",
+			"ott": "docx",
+			"fodt": "docx",
+			"dot": "docx",
+			"otp": "pptx",
+			"fodp": "pptx",
+			"pot": "pptx",
+			"docm": "docx",
+			"dotx": "docx",
+			"dotm": "docx",
+			"xltx": "xlsx",
+			"xltm": "xlsx",
+			"xlsm": "xlsx",
+			"potx": "pptx",
+			"potm": "pptx",
+			"pptm": "pptx",
+			"ppsx": "pptx",
+			"ppsm": "pptx"
+		},
+		"array"
+	],
+	"ExtensionsToConvert_Description": [
+		"",
+		"string"
+	],
+	"ExtensionsToEdit": [
+		[
+			"docx",
+			"xlsx",
+			"pptx"
+		],
+		"array"
+	],
+	"ExtensionsToEdit_Description": [
+		"",
+		"string"
+	],
+	"DocumentServerUrl": [
+		"",
+		"string"
+	],
+	"DocumentServerUrl_Description": [
+		"",
+		"string"
+	],
+	"Secret": [
+		"",
+		"string"
+	],
+	"Secret_Description": [
+		"",
+		"string"
+	],
+	"EnableHistory": [
+		true,
+		"bool"
+	],
+	"EnableHistory_Description": [
+		"",
+		"string"
+	],
+	"TrustedServerHost": [
+		"",
+		"string"
+	],
+	"TrustedServerHost_Description": [
+		"",
+		"string"
+	]
 }
