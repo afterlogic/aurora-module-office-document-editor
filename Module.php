@@ -711,7 +711,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 				}
 			}
 
-			if (($data["status"] == 2)||($data["status"] == 6)) {
+			if ($data["status"] == 2 || $data["status"] == 6) {
 				$sHash = (string) \Aurora\System\Router::getItemByIndex(1, '');
 				if (!empty($sHash)) {
 					$aHashValues = Api::DecodeKeyValues($sHash);
@@ -728,7 +728,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 							&& !$this->isReadOnlyDocument($oFileInfo->Name)) {
 							$rData = \file_get_contents($data["url"]);
 							if ($rData !== false) {
-								if ($this->getConfig('EnableHistory', false)) {							
+								if ($this->getConfig('EnableHistory', false) && $data["status"] == 2) {							
 									$histDir = $this->getHistoryDir(
 										$oFileInfo->TypeStr, 
 										$oFileInfo->Path, 
@@ -757,45 +757,33 @@ class Module extends \Aurora\System\Module\AbstractModule
 												]
 											);
 										}
-										$GLOBALS['__SKIP_HISTORY__'] = true;
 
-										FilesModule::Decorator()->Copy(
-											$iOwnerUserId,
+										$fileContent = FilesModule::Decorator()->GetFileContent(
+											$aHashValues['UserId'],
 											$aHashValues['Type'],
-											$aHashValues['Type'],
-											$oFileInfo->Path,
-											$verDir->getRelativePath() . '/' . $verDir->getName(),
-											[
-												[
-													'FromType' => $aHashValues['Type'],
-													'ToType' => $aHashValues['Type'],
-													'FromPath' => $oFileInfo->Path,
-													'ToPath' => $verDir->getRelativePath() . '/' . $verDir->getName(),
-													'Name' => $oFileInfo->Name,
-													'NewName' => 'prev.' . $ext
-												]
-											]
+											$aHashValues['Path'],
+											$aHashValues['Name']
 										);
-										unset($GLOBALS['__SKIP_HISTORY__']);
+										$verDir->createFile('prev.' . $ext, $fileContent);
+										$prevChild = $verDir->getChild('prev.' . $ext);
+										if ($prevChild) {
+											$mExtendedProps = $prevChild->getProperty('ExtendedProps');
+											$aExtendedProps = is_array($mExtendedProps) ? $mExtendedProps : [];
+											$aExtendedProps['Created'] = $oFileInfo->LastModified;
+								
+											$prevChild->setProperty('ExtendedProps', $aExtendedProps);
+										}
+										$this->updateHistory($verDir, $data);
 									}
 								}
 
-								$mResult = $this->createFile(
-									$iOwnerUserId, 
+								$this->createFile(
+									$aHashValues['UserId'],
 									$aHashValues['Type'], 
 									$aHashValues['Path'], 
 									$aHashValues['Name'], 
 									$rData
 								);
-
-								if ($mResult !== false && $this->getConfig('EnableHistory', false)) {
-									$this->updateHistory(
-										$iOwnerUserId, 
-										$aHashValues['Type'], 
-										$verDir->getRelativePath() . '/' . $verDir->getName(), 
-										$data
-									);
-								}
 							}
 						}
 					}
@@ -957,14 +945,13 @@ class Module extends \Aurora\System\Module\AbstractModule
 				if ($i === 0) {
 					$ext = strtolower(pathinfo($oFileInfo->Name, PATHINFO_EXTENSION));
 					list(, $sUserPublicId) = split($verDir->getOwner());
-					$prevState = Api::skipCheckUserRole(true);
-					$aPrevFileExtendedProps = FilesModule::Decorator()->GetExtendedProps(
-						$sUserPublicId,
-						$oFileInfo->TypeStr,
-						$verDir->getRelativePath() . '/' . $verDir->getName(),
-						'prev.' . $ext
-					);
-					Api::skipCheckUserRole($prevState);
+
+					$prevDoc = $verDir->getChild('prev.' . $ext);
+					$aPrevFileExtendedProps = [];
+					if ($prevDoc) {
+						$aPrevFileExtendedProps = $prevDoc->getProperty('ExtendedProps');
+					}
+					
 					if (isset($aPrevFileExtendedProps['Created'])) {
 						$obj["created"] =  $this->convetToUserTime(
 							$oUser,
@@ -983,8 +970,10 @@ class Module extends \Aurora\System\Module\AbstractModule
 					$ext = strtolower(pathinfo($oFileInfo->Name, PATHINFO_EXTENSION));
 
 					$sUrl = $this->getDownloadUrl(
-						Api::getUserIdByPublicId($sUserPublicId), 
-						$oFileInfo->TypeStr, 
+						//Api::getUserIdByPublicId($sUserPublicId), 
+						Api::getUserIdByPublicId($verDir->getUser()), 
+//						$oFileInfo->TypeStr, 
+						$verDir->getStorage(),
 						$verDir->getRelativePath() . '/' . $verDir->getName(), 
 						'prev.' . $ext
 					);
@@ -1029,8 +1018,10 @@ class Module extends \Aurora\System\Module\AbstractModule
 					}
 
 					$dataObj["changesUrl"] = $this->getDownloadUrl(
-						Api::getUserIdByPublicId($sUserPublicId), 
-						$oFileInfo->TypeStr, 
+						//Api::getUserIdByPublicId($sUserPublicId),
+						Api::getUserIdByPublicId($histDir->getUser()),
+						//$oFileInfo->TypeStr,
+						$histDir->getStorage(),
 						$histDir->getVersionDir($i)->getRelativePath() . '/' . $verDirPrev->getName(), 'diff.zip'
 					);
 				}
@@ -1054,21 +1045,22 @@ class Module extends \Aurora\System\Module\AbstractModule
 		return $result;
 	}
 
-	protected function updateHistory($iUserId, $sType, $sPath, $data)
+	protected function updateHistory($verDir, $data)
 	{
-		$rChangesData = \file_get_contents($data["changesurl"]);
-		if ($rChangesData !== false) {
-			$this->createFile($iUserId, $sType, $sPath, 'diff.zip', $rChangesData);
+		if (isset($data["changesurl"])) {
+			$rChangesData = \file_get_contents($data["changesurl"]);
+			if ($rChangesData !== false) {
+				$verDir->createFile('diff.zip', $rChangesData);
+			}
 		}
-
 		$histData = isset($data["changeshistory"]) ? $data["changeshistory"] : '';
 		if (empty($histData)) {
 		 	$histData = json_encode($data["history"], JSON_PRETTY_PRINT);
 		}
 		if (!empty($histData)) {
-			$this->createFile($iUserId, $sType, $sPath, 'changes.json', $histData);
+			$verDir->createFile('changes.json', $histData);
 		}
-		$this->createFile($iUserId, $sType, $sPath, 'key.txt', $data['key']);
+		$verDir->createFile('key.txt', $data['key']);
 	}
 
 	protected function createFile($iUserId, $sType, $sPath, $sFileName, $mData)
@@ -1106,7 +1098,8 @@ class Module extends \Aurora\System\Module\AbstractModule
 			'FileName' => $sName,
 			'AuthToken' => Api::UserSession()->Set([
 				'token' => 'auth',
-				'id' => $iUserId
+				'id' => $iUserId,
+				't' => time(),
 			])	
 		]);
 
