@@ -4,7 +4,7 @@
 		"bool"
 	],
 	"Disabled_Description": [
-		"",
+		"Setting to true disables the module",
 		"string"
 	],
 	"IncludeInMobile": [
@@ -12,7 +12,7 @@
 		"bool"
 	],
 	"IncludeInMobile_Description": [
-		"",
+		"If true, the module is used in mobile version of the interface",
 		"string"
 	],
 	"ExtensionsToView": [
@@ -32,7 +32,7 @@
 		"array"
 	],
 	"ExtensionsToView_Description": [
-		"",
+		"List of file types which can only be viewed by OnlyOffice",
 		"string"
 	],
 	"ExtensionsToConvert": [
@@ -68,7 +68,7 @@
 		"array"
 	],
 	"ExtensionsToConvert_Description": [
-		"",
+		"List of file types which can only be edited by OnlyOffice into a different format, and target format specified for each entry",
 		"string"
 	],
 	"ExtensionsToEdit": [
@@ -80,7 +80,7 @@
 		"array"
 	],
 	"ExtensionsToEdit_Description": [
-		"",
+		"List of file types which can be edited by OnlyOffice",
 		"string"
 	],
 	"DocumentServerUrl": [
@@ -88,7 +88,7 @@
 		"string"
 	],
 	"DocumentServerUrl_Description": [
-		"",
+		"OnlyOffice installation URL",
 		"string"
 	],
 	"Secret": [
@@ -96,7 +96,7 @@
 		"string"
 	],
 	"Secret_Description": [
-		"",
+		"Secret token needs to be specified here if JWT protection is enabled on OnlyOffice",
 		"string"
 	],
 	"EnableHistory": [
@@ -104,7 +104,7 @@
 		"bool"
 	],
 	"EnableHistory_Description": [
-		"",
+		"Enables Version History feature of document editing",
 		"string"
 	],
 	"TrustedServerHost": [
