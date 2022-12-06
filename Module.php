@@ -890,7 +890,9 @@ class Module extends \Aurora\System\Module\AbstractModule
 			$oHistNode = $oNode->getHistoryDirectory();
 			if (!$oHistNode && $bCreateIfNotExists) {
 				$oParentNode = Server::getNodeForPath('files/' . $sType . $sPath);
-				$oParentNode->createDirectory($sName . '.hist');
+				if ($oParentNode) {
+					$oParentNode->createDirectory($sName . '.hist');
+				}
 				$oHistNode = $oNode->getHistoryDirectory();
 			}
 		}
