@@ -903,7 +903,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 		$result = [];
 		$curVer = 0;
 		$histDir = $this->getHistoryDir($oFileInfo->TypeStr, $oFileInfo->Path, $oFileInfo->Name);
-		if ($histDir) {
+		if ($histDir && method_exists($histDir, 'getFileVersion')) {
 			$curVer = $histDir->getFileVersion();
 		}
 
