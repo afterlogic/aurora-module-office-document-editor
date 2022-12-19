@@ -8,6 +8,7 @@
 namespace Aurora\Modules\OfficeDocumentEditor;
 
 use Afterlogic\DAV\FS\File;
+use Afterlogic\DAV\FS\Directory;
 use Aurora\Api;
 use Afterlogic\DAV\Server;
 use Aurora\System\Application;
@@ -890,7 +891,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 			$oHistNode = $oNode->getHistoryDirectory();
 			if (!$oHistNode && $bCreateIfNotExists) {
 				$oParentNode = Server::getNodeForPath('files/' . $sType . $sPath);
-				if ($oParentNode) {
+				if ($oParentNode instanceof Directory) {
 					$oParentNode->createDirectory($sName . '.hist');
 				}
 				$oHistNode = $oNode->getHistoryDirectory();
