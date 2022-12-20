@@ -687,10 +687,17 @@ class Module extends \Aurora\System\Module\AbstractModule
 	{
 		$result = ["error" => 0];
 
+		Api::Log(self::GetName() . '::EntryCallback');
+
 		if (($body_stream = file_get_contents("php://input")) === FALSE) {
 			$result["error"] = "Bad Request";
 		} else {
 			$data = json_decode($body_stream, TRUE);
+
+			if (isset($data['token'])) {
+				Api::AddSecret($data['token']);
+			}
+			Api::Log($body_stream);
 
 			$oJwt = new Classes\JwtManager($this->getConfig('Secret', ''));
 			if ($oJwt->isJwtEnabled()) {
@@ -1068,6 +1075,8 @@ class Module extends \Aurora\System\Module\AbstractModule
 
 	protected function createFile($iUserId, $sType, $sPath, $sFileName, $mData)
 	{
+		Api::Log(self::GetName() . '::CreateFile');
+
 		$mResult = false;
 		$aArgs = [
 			'UserId' => $iUserId,
