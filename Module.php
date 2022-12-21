@@ -687,9 +687,6 @@ class Module extends \Aurora\System\Module\AbstractModule
 	{
 		$result = ["error" => 0];
 
-		\Aurora\System\Api::Log(" ");
-		\Aurora\System\Api::Log(" ===== ENTRY: " . self::GetName() . '::ode-callback');
-
 		if (($body_stream = file_get_contents("php://input")) === FALSE) {
 			$result["error"] = "Bad Request";
 		} else {
