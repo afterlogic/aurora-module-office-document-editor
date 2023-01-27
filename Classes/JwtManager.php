@@ -11,7 +11,7 @@ class JwtManager
         $this->sSecret = $sSecret;
     }
 
-    function isJwtEnabled()
+    public function isJwtEnabled()
     {
         return !empty($this->sSecret);
     }
@@ -32,11 +32,15 @@ class JwtManager
     public function jwtDecode($token)
     {
         $split = explode(".", $token);
-        if (count($split) != 3) return "";
+        if (count($split) != 3) {
+            return "";
+        }
 
         $hash = $this->base64UrlEncode($this->calculateHash($split[0], $split[1]));
 
-        if (strcmp($hash, $split[2]) != 0) return "";
+        if (strcmp($hash, $split[2]) != 0) {
+            return "";
+        }
         return $this->base64UrlDecode($split[1]);
     }
 
@@ -53,12 +57,13 @@ class JwtManager
     public function base64UrlDecode($payload)
     {
         $b64 = str_replace("_", "/", str_replace("-", "+", $payload));
-        switch (strlen($b64) % 4)
-        {
+        switch (strlen($b64) % 4) {
             case 2:
-                $b64 = $b64 . "=="; break;
+                $b64 = $b64 . "==";
+                break;
             case 3:
-                $b64 = $b64 . "="; break;
+                $b64 = $b64 . "=";
+                break;
         }
         return base64_decode($b64);
     }
