@@ -740,6 +740,12 @@ class Module extends \Aurora\System\Module\AbstractModule
                             $rData = \file_get_contents($data["url"]);
                             if ($rData !== false) {
                                 if ($this->getConfig('EnableHistory', false) && $data["status"] == 2) {
+                                    if ($this->isTrustedRequest()) {
+                                        $iUserId = isset($aHashValues['UserId']) ? $aHashValues['UserId'] : null;
+                                        if (isset($iUserId)) {
+                                            Server::setUser(Api::getUserPublicIdById($iUserId));
+                                        }
+                                    }
                                     $histDir = $this->getHistoryDir(
                                         $oFileInfo->TypeStr,
                                         $oFileInfo->Path,
@@ -750,9 +756,6 @@ class Module extends \Aurora\System\Module\AbstractModule
                                         $curVer = $histDir->getFileVersion();
                                         $verDir = $histDir->getVersionDir($curVer + 1, true);
                                         $ext = strtolower(pathinfo($oFileInfo->Name, PATHINFO_EXTENSION));
-
-                                        // save previous version
-                                        Api::skipCheckUserRole(true);
 
                                         list(, $sOwnerUserPublicId) = split($verDir->getOwner());
                                         $iOwnerUserId = Api::getUserIdByPublicId($sOwnerUserPublicId);
