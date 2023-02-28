@@ -14,12 +14,12 @@ namespace Aurora\Modules\OfficeDocumentEditor\Enums;
  */
 class ErrorCodes
 {
-	const ExtensionCannotBeConverted = 1001;
+    public const ExtensionCannotBeConverted = 1001;
 
-	/**
-	 * @var array
-	 */
-	protected $aConsts = [
-		'ExtensionCannotBeConverted' => self::ExtensionCannotBeConverted,
-	];
+    /**
+     * @var array
+     */
+    protected $aConsts = [
+        'ExtensionCannotBeConverted' => self::ExtensionCannotBeConverted,
+    ];
 }
