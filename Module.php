@@ -10,7 +10,7 @@ namespace Aurora\Modules\OfficeDocumentEditor;
 /**
  * @license https://www.gnu.org/licenses/agpl-3.0.html AGPL-3.0
  * @license https://afterlogic.com/products/common-licensing Afterlogic Software License
- * @copyright Copyright (c) 2021, Afterlogic Corp.
+ * @copyright Copyright (c) 2023, Afterlogic Corp.
  *
  * @package Modules
  */
@@ -299,8 +299,12 @@ class Module extends \Aurora\System\Module\AbstractModule
                 $lastModified = $oFileInfo->LastModified;
                 $docKey = \md5($oFileInfo->RealPath . $lastModified);
                 $oFileInfo->Path = $aHashValues['Path'];
-                $sMode = (isset($oFileInfo->ExtendedProps['Access']) && (int) $oFileInfo->ExtendedProps['Access'] === \Afterlogic\DAV\FS\Permission::Write) || (!isset($oFileInfo->ExtendedProps['Access']) && $oFileInfo->Owner === $oUser->PublicId) ? $sMode : 'view';
-                $aHistory = $this->getHistory(\Aurora\System\Api::getAuthenticatedUserPublicId(), $oFileInfo, $docKey, $fileuri);
+                $sMode = (isset($oFileInfo->ExtendedProps['SharedWithMeAccess']) && ((int) $oFileInfo->ExtendedProps['SharedWithMeAccess'] === \Afterlogic\DAV\FS\Permission::Write || (int) $oFileInfo->ExtendedProps['SharedWithMeAccess'] === \Afterlogic\DAV\FS\Permission::Reshare)) || (!isset($oFileInfo->ExtendedProps['SharedWithMeAccess']) && $oFileInfo->Owner === $oUser->PublicId) || ($oFileInfo->TypeStr === FileStorageType::Corporate) ? $sMode : 'view';
+                $aHistory = $this->getHistory($oFileInfo, $docKey, $fileuri);
+            } elseif (isset($aHashValues['FileName'])) {
+                $docKey = \md5($aHashValues['FileName'] . time());
+            } elseif (isset($aHashValues['Name'])) {
+                $docKey = \md5($aHashValues['Name'] . time());
             }
         }
 
@@ -321,8 +325,7 @@ class Module extends \Aurora\System\Module\AbstractModule
                 $uname = !empty($oUser->Name) ? $oUser->Name : $oUser->PublicId;
                 $lang = \Aurora\System\Utils::ConvertLanguageNameToShort($oUser->Language);
             }
-            var_dump($fileuri);
-            exit;
+
             $config = [
                 "type" => empty($_GET["type"]) ? "desktop" : $_GET["type"],
                 "documentType" => $this->getDocumentType($filename),
