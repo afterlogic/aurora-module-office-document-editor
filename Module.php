@@ -9,6 +9,7 @@ namespace Aurora\Modules\OfficeDocumentEditor;
 
 use Afterlogic\DAV\FS\File;
 use Afterlogic\DAV\FS\Directory;
+use Afterlogic\DAV\FS\Permission;
 use Aurora\Api;
 use Afterlogic\DAV\Server;
 use Aurora\System\Application;
@@ -312,7 +313,28 @@ class Module extends \Aurora\System\Module\AbstractModule
                 $lastModified = $oFileInfo->LastModified;
                 $docKey = \md5($oFileInfo->RealPath . $lastModified);
                 $oFileInfo->Path = $aHashValues['Path'];
-                $sMode = (isset($oFileInfo->ExtendedProps['SharedWithMeAccess']) && ((int) $oFileInfo->ExtendedProps['SharedWithMeAccess'] === \Afterlogic\DAV\FS\Permission::Write || (int) $oFileInfo->ExtendedProps['SharedWithMeAccess'] === \Afterlogic\DAV\FS\Permission::Reshare)) || (!isset($oFileInfo->ExtendedProps['SharedWithMeAccess']) && $oFileInfo->Owner === $oUser->PublicId) || ($oFileInfo->TypeStr === FileStorageType::Corporate) ? $sMode : 'view';
+                $SharedWithMeAccess = isset($oFileInfo->ExtendedProps['SharedWithMeAccess']) ? (int) $oFileInfo->ExtendedProps['SharedWithMeAccess'] : null;
+                
+                if (!isset($SharedWithMeAccess) && $oFileInfo->Owner !== $oUser->PublicId) {
+                    list($sParentPath, $sParentId) = \Sabre\Uri\split($aHashValues['Path']);
+                    $oParentFileInfo = null;
+                    try {
+                        $oParentFileInfo = FilesModule::Decorator()->GetFileInfo(
+                            $aHashValues['UserId'],
+                            $aHashValues['Type'],
+                            $sParentPath,
+                            $sParentId
+                        );
+                    } catch (\Exception $oEx) {
+                    }
+
+                    if (isset($oParentFileInfo) && $oParentFileInfo->Owner === $oUser->PublicId) {
+                        $oFileInfo->Owner = $oParentFileInfo->Owner;
+                    }
+                }
+                
+                $sMode = (isset($SharedWithMeAccess) && ($SharedWithMeAccess === Permission::Write || $SharedWithMeAccess === Permission::Reshare)) || 
+                    (!isset($SharedWithMeAccess) && $oFileInfo->Owner === $oUser->PublicId) || ($oFileInfo->TypeStr === FileStorageType::Corporate) ? $sMode : 'view';
                 $aHistory = $this->getHistory($oFileInfo, $docKey, $fileuri);
             } elseif (isset($aHashValues['FileName'])) {
                 $docKey = \md5($aHashValues['FileName'] . time());
@@ -746,12 +768,7 @@ class Module extends \Aurora\System\Module\AbstractModule
                                             Server::setUser(Api::getUserPublicIdById($iUserId));
                                         }
                                     }
-                                    $histDir = $this->getHistoryDir(
-                                        $oFileInfo->TypeStr,
-                                        $oFileInfo->Path,
-                                        $oFileInfo->Name,
-                                        true
-                                    );
+                                    $histDir = $this->getHistoryDir($oFileInfo, true);
                                     if ($histDir) {
                                         $curVer = $histDir->getFileVersion();
                                         $verDir = $histDir->getVersionDir($curVer + 1, true);
@@ -892,17 +909,23 @@ class Module extends \Aurora\System\Module\AbstractModule
     {
     }
 
-    protected function getHistoryDir($sType, $sPath, $sName, $bCreateIfNotExists = false)
+    protected function getHistoryDir($oFileInfo, $bCreateIfNotExists = false)
     {
         $oHistNode = false;
+
+        $sType = $oFileInfo->TypeStr;
+        $sPath = $oFileInfo->Path;
+        $sName = $oFileInfo->Name;
+        $sOwner = $oFileInfo->Owner;
+
         /**
          * @var $oNode
          */
-        $oNode = Server::getNodeForPath('files/' . $sType . $sPath . '/' . $sName);
+        $oNode = Server::getNodeForPath('files/' . $sType . $sPath . '/' . $sName, $sOwner);
         if ($oNode instanceof File) {
             $oHistNode = $oNode->getHistoryDirectory();
             if (!$oHistNode && $bCreateIfNotExists) {
-                $oParentNode = Server::getNodeForPath('files/' . $sType . $sPath);
+                $oParentNode = Server::getNodeForPath('files/' . $sType . $sPath, $sOwner);
                 if ($oParentNode instanceof Directory) {
                     $oParentNode->createDirectory($sName . '.hist');
                 }
@@ -917,7 +940,7 @@ class Module extends \Aurora\System\Module\AbstractModule
     {
         $result = [];
         $curVer = 0;
-        $histDir = $this->getHistoryDir($oFileInfo->TypeStr, $oFileInfo->Path, $oFileInfo->Name);
+        $histDir = $this->getHistoryDir($oFileInfo);
         if ($histDir && method_exists($histDir, 'getFileVersion')) {
             $curVer = $histDir->getFileVersion();
         }
