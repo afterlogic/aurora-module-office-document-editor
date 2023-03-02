@@ -381,7 +381,8 @@ class Module extends \Aurora\System\Module\AbstractModule
                         "modifyFilter" => !$bIsReadOnlyMode,
                         "modifyContentControl" => !$bIsReadOnlyMode,
                         "review" => !$bIsReadOnlyMode,
-                        "changeHistory" => !$bIsReadOnlyMode
+                        "changeHistory" => !$bIsReadOnlyMode,
+                        "chat" => !$bIsReadOnlyMode
                     ]
                 ],
                 "editorConfig" => [
@@ -400,7 +401,6 @@ class Module extends \Aurora\System\Module\AbstractModule
                         "toolbarDocked" => "top",
                     ],
                     "customization" => [
-                        "chat" => !$bIsReadOnlyMode,
                         "comments" => !$bIsReadOnlyMode,
                         "about" => false,
                         "feedback" => false,
