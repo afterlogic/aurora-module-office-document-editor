@@ -102,6 +102,15 @@ class Module extends \Aurora\System\Module\AbstractModule
         $this->subscribeEvent('AddToContentSecurityPolicyDefault', [$this, 'onAddToContentSecurityPolicyDefault']);
     }
 
+    /**
+     *
+     * @return Module
+     */
+    public static function Decorator()
+    {
+        return parent::Decorator();
+    }
+
     public function GetSettings()
     {
         Api::checkUserRoleIsAtLeast(\Aurora\System\Enums\UserRole::NormalUser);
@@ -208,8 +217,8 @@ class Module extends \Aurora\System\Module\AbstractModule
 
     /**
      *
-     * @param type $aArguments
-     * @param type $aResult
+     * @param array $aArguments
+     * @param array $aResult
      */
     public function onBeforeFileViewEntry(&$aArguments, &$aResult)
     {
@@ -314,7 +323,7 @@ class Module extends \Aurora\System\Module\AbstractModule
                 $docKey = \md5($oFileInfo->RealPath . $lastModified);
                 $oFileInfo->Path = $aHashValues['Path'];
                 $SharedWithMeAccess = isset($oFileInfo->ExtendedProps['SharedWithMeAccess']) ? (int) $oFileInfo->ExtendedProps['SharedWithMeAccess'] : null;
-                
+
                 if (!isset($SharedWithMeAccess) && $oFileInfo->Owner !== $oUser->PublicId) {
                     list($sParentPath, $sParentId) = \Sabre\Uri\split($aHashValues['Path']);
                     $oParentFileInfo = null;
@@ -332,8 +341,8 @@ class Module extends \Aurora\System\Module\AbstractModule
                         $oFileInfo->Owner = $oParentFileInfo->Owner;
                     }
                 }
-                
-                $sMode = (isset($SharedWithMeAccess) && ($SharedWithMeAccess === Permission::Write || $SharedWithMeAccess === Permission::Reshare)) || 
+
+                $sMode = (isset($SharedWithMeAccess) && ($SharedWithMeAccess === Permission::Write || $SharedWithMeAccess === Permission::Reshare)) ||
                     (!isset($SharedWithMeAccess) && $oFileInfo->Owner === $oUser->PublicId) || ($oFileInfo->TypeStr === FileStorageType::Corporate) ? $sMode : 'view';
                 $aHistory = $this->getHistory($oFileInfo, $docKey, $fileuri);
             } elseif (isset($aHashValues['FileName'])) {
@@ -605,6 +614,8 @@ class Module extends \Aurora\System\Module\AbstractModule
     protected function SendRequestToConvertService($document_uri, $from_extension, $to_extension, $document_revision_id, $is_async)
     {
         $title = basename($document_uri);
+        $urlToConverter = '';
+
         if (empty($title)) {
             $title = \Sabre\DAV\UUIDUtil::getUUID();
         }
@@ -827,8 +838,8 @@ class Module extends \Aurora\System\Module\AbstractModule
 
     /**
      *
-     * @param type $aArguments
-     * @param type $aResult
+     * @param array $aArguments
+     * @param array $aResult
      */
     public function onGetFile(&$aArguments, &$aResult)
     {
@@ -841,7 +852,8 @@ class Module extends \Aurora\System\Module\AbstractModule
      * Writes to $aData variable list of DropBox files if $aData['Type'] is DropBox account type.
      *
      * @ignore
-     * @param array $aData Is passed by reference.
+     * @param array $aArgs
+     * @param mixed $mResult
      */
     public function onGetItems($aArgs, &$mResult)
     {
@@ -919,7 +931,7 @@ class Module extends \Aurora\System\Module\AbstractModule
         $sOwner = $oFileInfo->Owner;
 
         /**
-         * @var $oNode
+         * @var \Afterlogic\DAV\FS\Directory $oNode
          */
         $oNode = Server::getNodeForPath('files/' . $sType . $sPath . '/' . $sName, $sOwner);
         if ($oNode instanceof File) {
