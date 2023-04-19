@@ -26,6 +26,8 @@ use function Sabre\Uri\split;
  * @license https://afterlogic.com/products/common-licensing Afterlogic Software License
  * @copyright Copyright (c) 2023, Afterlogic Corp.
  *
+ * @property Settings $oModuleSettings
+ *
  * @package Modules
  */
 class Module extends \Aurora\System\Module\AbstractModule
@@ -131,17 +133,17 @@ class Module extends \Aurora\System\Module\AbstractModule
 
     protected function getExtensionsToView()
     {
-        return $this->getConfig('ExtensionsToView', []);
+        return $this->oModuleSettings->ExtensionsToView;
     }
 
     protected function getExtensionsToConvert()
     {
-        return $this->getConfig('ExtensionsToConvert', []);
+        return $this->oModuleSettings->ExtensionsToConvert;
     }
 
     protected function getExtensionsToEdit()
     {
-        return $this->getConfig('ExtensionsToEdit', []);
+        return $this->oModuleSettings->ExtensionsToEdit;
     }
 
     protected function getOfficeExtensions()
@@ -206,7 +208,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 
         $bResult = false;
 
-        $sTrustedServerHost = $this->getConfig('TrustedServerHost', '');
+        $sTrustedServerHost = $this->oModuleSettings->TrustedServerHost;
         if (empty($sTrustedServerHost)) {
             $bResult = true;
         } else {
@@ -302,7 +304,7 @@ class Module extends \Aurora\System\Module\AbstractModule
             $fileuri = $sFullUrl . '?' . $fileuri;
         }
 
-        if (isset($sHash)) {
+        if ($sHash) {
             $aHashValues = Api::DecodeKeyValues($sHash);
             if (isset($aHashValues['FileName'])) {
                 $filename = $aHashValues['FileName'];
@@ -368,11 +370,11 @@ class Module extends \Aurora\System\Module\AbstractModule
         $mode = $bIsReadOnlyMode || $this->isReadOnlyDocument($filename) ? 'view' : 'edit';
         $fileuriUser = '';
 
-        $serverPath = $this->getConfig('DocumentServerUrl', null);
+        $serverPath = $this->oModuleSettings->DocumentServerUrl;
 
         $callbackUrl = $sFullUrl . '?ode-callback/' . $sHash;
 
-        if (isset($fileuri) && isset($serverPath)) {
+        if (isset($fileuri) && $serverPath) {
             if ($oUser) {
                 $uid = (string) $oUser->Id;
                 $uname = !empty($oUser->Name) ? $oUser->Name : $oUser->PublicId;
@@ -431,7 +433,7 @@ class Module extends \Aurora\System\Module\AbstractModule
                 ]
             ];
 
-            $oJwt = new Classes\JwtManager($this->getConfig('Secret', ''));
+            $oJwt = new Classes\JwtManager($this->oModuleSettings->Secret);
             if ($oJwt->isJwtEnabled()) {
                 $config['token'] = $oJwt->jwtEncode($config);
             }
@@ -635,7 +637,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 
         $document_revision_id = $this->GenerateRevisionId($document_revision_id);
 
-        $serverPath = $this->getConfig('DocumentServerUrl', null);
+        $serverPath = $this->oModuleSettings->DocumentServerUrl;
         if ($serverPath !== null) {
             $urlToConverter = $serverPath . '/ConvertService.ashx';
         }
@@ -651,7 +653,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 
         $headerToken = "";
 
-        $oJwt = new Classes\JwtManager($this->getConfig('Secret', ''));
+        $oJwt = new Classes\JwtManager($this->oModuleSettings->Secret);
         if ($oJwt->isJwtEnabled()) {
             $headerToken = $oJwt->jwtEncode([ "payload" => $arr ]);
             $arr["token"] = $oJwt->jwtEncode($arr);
@@ -742,7 +744,7 @@ class Module extends \Aurora\System\Module\AbstractModule
             }
             Api::Log($body_stream);
 
-            $oJwt = new Classes\JwtManager($this->getConfig('Secret', ''));
+            $oJwt = new Classes\JwtManager($this->oModuleSettings->Secret);
             if ($oJwt->isJwtEnabled()) {
                 $inHeader = false;
                 $token = "";
@@ -781,7 +783,7 @@ class Module extends \Aurora\System\Module\AbstractModule
                             && !$this->isReadOnlyDocument($oFileInfo->Name)) {
                             $rData = \file_get_contents($data["url"]);
                             if ($rData !== false) {
-                                if ($this->getConfig('EnableHistory', false) && $data["status"] == 2) {
+                                if ($this->oModuleSettings->EnableHistory && $data["status"] == 2) {
                                     if ($this->isTrustedRequest()) {
                                         $iUserId = isset($aHashValues['UserId']) ? $aHashValues['UserId'] : null;
                                         if (isset($iUserId)) {
@@ -918,7 +920,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 
     public function onAddToContentSecurityPolicyDefault($aArgs, &$aAddDefault)
     {
-        $sUrl = $this->getConfig('DocumentServerUrl', null);
+        $sUrl = $this->oModuleSettings->DocumentServerUrl;
         if (!empty($sUrl)) {
             $aAddDefault[] = $sUrl;
         }
@@ -1087,7 +1089,7 @@ class Module extends \Aurora\System\Module\AbstractModule
                 }
 
                 array_push($hist, $obj);
-                $oJwt = new Classes\JwtManager($this->getConfig('Secret', ''));
+                $oJwt = new Classes\JwtManager($this->oModuleSettings->Secret);
                 if ($oJwt->isJwtEnabled()) {
                     $dataObj['token'] = $oJwt->jwtEncode($dataObj);
                 }
