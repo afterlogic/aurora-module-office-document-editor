@@ -78,7 +78,9 @@ class Module extends \Aurora\System\Module\AbstractModule
 
         $this->AddEntries([
             'editor' => 'EntryEditor',
-            'ode-callback' => 'EntryCallback'
+            'viewer' => 'EntryViewer',
+            'ode-callback' => 'EntryCallback',
+            'file-content' => 'EntryFileContent'
         ]);
 
         $this->subscribeEvent('System::RunEntry::before', [$this, 'onBeforeFileViewEntry'], 10);
@@ -404,6 +406,127 @@ class Module extends \Aurora\System\Module\AbstractModule
 
         return $sResult;
     }
+
+    public function EntryFileContent()
+    {
+        $fileuri = isset($_GET['file-content']) ? $_GET['file-content'] : null;
+        $secret = isset($_GET['secret']) ? $_GET['secret'] : null;
+        $configSecret = $this->getConfig('Secret', null);
+
+        if ($secret !== null && $configSecret !== null && $configSecret === $secret) {
+            $filename = pathinfo($fileuri, PATHINFO_BASENAME);
+            $contentType = (empty($filename)) ? 'text/plain' : \MailSo\Base\Utils::MimeContentType($filename);
+            \Aurora\System\Managers\Response::OutputHeaders(true, $contentType, $filename);
+            echo file_get_contents($fileuri);
+            exit();
+        }
+    }
+
+    public function EntryViewer()
+    {
+        $sResult = '';
+        $fileuri = isset($_GET['viewer']) ? $_GET['viewer'] : null;
+        $filename = null;
+        $docKey = null;
+        $lastModified = time();
+
+        $oUser = \Aurora\System\Api::getAuthenticatedUser();
+
+        $filename = pathinfo($fileuri, PATHINFO_BASENAME);
+        $docKey = \md5($filename . time());
+
+        $bIsReadOnlyMode = true;
+
+        $filetype = strtolower(pathinfo($fileuri, PATHINFO_EXTENSION));
+        $lang = 'en';
+        $mode = 'view';
+        $fileuriUser = '';
+
+        $serverPath = $this->getConfig('DocumentServerUrl', null);
+
+        if (isset($fileuri) && isset($serverPath)) {
+            $fileuri = $this->oHttp->GetFullUrl() . '?file-content=' . $fileuri . '&secret=' . $this->getConfig('Secret', '');
+            if ($oUser) {
+                $uid = (string) $oUser->EntityId;
+                $uname = !empty($oUser->Name) ? $oUser->Name : $oUser->PublicId;
+                $lang = \Aurora\System\Utils::ConvertLanguageNameToShort($oUser->Language);
+            }
+
+            $config = [
+                "type" => "desktop",
+                "documentType" => $this->getDocumentType($filename),
+                "document" => [
+                    "title" => $filename,
+                    "url" => $fileuri,
+                    "fileType" => $filetype,
+                    "key" => $docKey,
+                    "info" => [
+                        "owner" => $uname,
+                        "uploaded" => date('d.m.y', $lastModified)
+                    ],
+                    "permissions" => [
+                        "comment" => !$bIsReadOnlyMode,
+                        "download" => true,
+                        "edit" => !$bIsReadOnlyMode,
+                        "fillForms" => !$bIsReadOnlyMode,
+                        "modifyFilter" => !$bIsReadOnlyMode,
+                        "modifyContentControl" => !$bIsReadOnlyMode,
+                        "review" => !$bIsReadOnlyMode,
+                        "changeHistory" => !$bIsReadOnlyMode
+                    ]
+                ],
+                "editorConfig" => [
+                    "actionLink" => null,
+                    "mode" => $mode,
+                    "lang" => $lang,
+                    "user" => [
+                        "id" => $uid,
+                        "name" => $uname
+                    ],
+                    "embedded" => [
+                        "saveUrl" => $fileuriUser,
+                        "embedUrl" => $fileuriUser,
+                        "shareUrl" => $fileuriUser,
+                        "toolbarDocked" => "top",
+                    ],
+                    "customization" => [
+                        "chat" => !$bIsReadOnlyMode,
+                        "comments" => !$bIsReadOnlyMode,
+                        "about" => false,
+                        "feedback" => false,
+                        "goback" => false,
+                        "forcesave" => true,
+                    ]
+                ]
+            ];
+
+            $oJwt = new Classes\JwtManager($this->getConfig('Secret', ''));
+            if ($oJwt->isJwtEnabled()) {
+                $config['token'] = $oJwt->jwtEncode($config);
+            }
+
+            $sResult = \file_get_contents($this->GetPath().'/templates/Editor.html');
+
+            $iUserId = \Aurora\System\Api::getAuthenticatedUserId();
+            if (0 < $iUserId) {
+                $sResult = strtr($sResult, [
+                    '{{DOC_SERV_API_URL}}' => $serverPath . '/web-apps/apps/api/documents/api.js',
+                    '{{CONFIG}}' => \json_encode($config),
+                    '{{HISTORY}}' => 'false',
+                    '{{HISTORY_DATA}}' => 'false'
+                ]);
+                \Aurora\Modules\CoreWebclient\Module::Decorator()->SetHtmlOutputHeaders();
+                @header('Cache-Control: no-cache, no-store, must-revalidate', true);
+                @header('Pragma: no-cache', true);
+                @header('Expires: 0', true);
+            } else {
+                \Aurora\System\Api::Location('./');
+            }
+        }
+
+        return $sResult;
+    }
+
 
     public function CreateBlankDocument($Type, $Path, $FileName)
     {
