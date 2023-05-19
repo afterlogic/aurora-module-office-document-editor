@@ -410,22 +410,20 @@ class Module extends \Aurora\System\Module\AbstractModule
     public function EntryFileContent()
     {
         $fileuri = isset($_GET['file-content']) ? $_GET['file-content'] : null;
-        $secret = isset($_GET['secret']) ? $_GET['secret'] : null;
-        $configSecret = $this->getConfig('Secret', null);
-
-        if ($secret !== null && $configSecret !== null && $configSecret === $secret) {
+        $scheme = parse_url($fileuri, PHP_URL_SCHEME);
+        if ($scheme && (strtolower($scheme) === 'http' || strtolower($scheme) === 'https')) {
             $filename = pathinfo($fileuri, PATHINFO_BASENAME);
             $contentType = (empty($filename)) ? 'text/plain' : \MailSo\Base\Utils::MimeContentType($filename);
             \Aurora\System\Managers\Response::OutputHeaders(true, $contentType, $filename);
-            $arrContextOptions=array(
-                "ssl"=>array(
-                    "verify_peer"=>false,
-                    "verify_peer_name"=>false,
-                ),
-            );
+            $arrContextOptions = [
+                "ssl" => [
+                    "verify_peer" => false,
+                    "verify_peer_name" => false,
+                ],
+            ];
             echo file_get_contents($fileuri, false, stream_context_create($arrContextOptions));
-            exit();
         }
+        exit();
     }
 
     public function EntryViewer()
@@ -451,7 +449,7 @@ class Module extends \Aurora\System\Module\AbstractModule
         $serverPath = $this->getConfig('DocumentServerUrl', null);
 
         if (isset($fileuri) && isset($serverPath)) {
-            $fileuri = $this->oHttp->GetFullUrl() . '?file-content=' . $fileuri . '&secret=' . $this->getConfig('Secret', '');
+            $fileuri = $this->oHttp->GetFullUrl() . '?file-content=' . $fileuri;
             if ($oUser) {
                 $uid = (string) $oUser->EntityId;
                 $uname = !empty($oUser->Name) ? $oUser->Name : $oUser->PublicId;
@@ -517,7 +515,7 @@ class Module extends \Aurora\System\Module\AbstractModule
             if (0 < $iUserId) {
                 $sResult = strtr($sResult, [
                     '{{DOC_SERV_API_URL}}' => $serverPath . '/web-apps/apps/api/documents/api.js',
-                    '{{CONFIG}}' => \json_encode($config),
+                    '{{CONFIG}}' => \json_encode($config, JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE),
                     '{{HISTORY}}' => 'false',
                     '{{HISTORY_DATA}}' => 'false'
                 ]);
@@ -532,7 +530,6 @@ class Module extends \Aurora\System\Module\AbstractModule
 
         return $sResult;
     }
-
 
     public function CreateBlankDocument($Type, $Path, $FileName)
     {
