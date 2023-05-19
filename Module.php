@@ -417,7 +417,13 @@ class Module extends \Aurora\System\Module\AbstractModule
             $filename = pathinfo($fileuri, PATHINFO_BASENAME);
             $contentType = (empty($filename)) ? 'text/plain' : \MailSo\Base\Utils::MimeContentType($filename);
             \Aurora\System\Managers\Response::OutputHeaders(true, $contentType, $filename);
-            echo file_get_contents($fileuri);
+            $arrContextOptions=array(
+                "ssl"=>array(
+                    "verify_peer"=>false,
+                    "verify_peer_name"=>false,
+                ),
+            );
+            echo file_get_contents($fileuri, false, stream_context_create($arrContextOptions));
             exit();
         }
     }
