@@ -6,6 +6,7 @@ module.exports = function (oAppData) {
 		$ = require('jquery'),
 
 		TextUtils = require('%PathToCoreWebclientModule%/js/utils/Text.js'),
+		Types = require('%PathToCoreWebclientModule%/js/utils/Types.js'),
 
 		App = require('%PathToCoreWebclientModule%/js/App.js'),
 
@@ -19,7 +20,9 @@ module.exports = function (oAppData) {
 		return {
 			start: function (ModulesManager) {
 				var aExtensionsToView = oAppData['%ModuleName%'] ? oAppData['%ModuleName%']['ExtensionsToView'] : [];
+				aExtensionsToView = aExtensionsToView.map((item) => { return Types.pString(item).toLowerCase() });
 				CAbstractFileModel.addViewExtensions(aExtensionsToView);
+
 				App.subscribeEvent('FilesWebclient::ConstructView::after', function (oParams) {
 					if (oParams.Name === 'CFilesView') {
 						var oView = oParams.View;
@@ -33,10 +36,11 @@ module.exports = function (oAppData) {
 				App.subscribeEvent('FilesWebclient::ParseFile::after', function (aParams) {
 					var
 						oFile = aParams[0],
-						oRawData = aParams[1]
+						oRawData = aParams[1],
+						sFileExtension = Types.pString(oFile.extension()).toLowerCase()
 					;
 
-					if (oFile.hasAction('view') && oFile.oActionsData['view'] && -1 !== $.inArray(oFile.extension(), aExtensionsToView))
+					if (oFile.hasAction('view') && oFile.oActionsData['view'] && -1 !== $.inArray(sFileExtension, aExtensionsToView))
 					{
 						delete oFile.oActionsData['view'].HandlerName;
 						oFile.oActionsData['view'].Handler = FilesActions.view.bind(oFile);
