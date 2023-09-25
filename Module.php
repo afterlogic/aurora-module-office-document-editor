@@ -256,7 +256,7 @@ class Module extends \Aurora\System\Module\AbstractModule
                 $sFileName = isset($aValues['Name']) ? urldecode($aValues['Name']) : '';
             }
             if ($sAction === 'view' && $this->isOfficeDocument($sFileName) && !isset($aValues['AuthToken'])) {
-                $sViewerUrl = './?editor=' . urlencode($sEntry .'/' . $sHash . '/' . $sAction . '/' . time());
+                $sViewerUrl = './?editor=' . urlencode($sEntry . '/' . $sHash . '/' . $sAction . '/' . time());
                 \header('Location: ' . $sViewerUrl);
             } elseif ($this->isOfficeDocument($sFileName) || $sFileName === 'diff.zip' || $sFileName === 'changes.json') {
                 if ($this->isTrustedRequest()) {
@@ -444,7 +444,7 @@ class Module extends \Aurora\System\Module\AbstractModule
                 $config['token'] = $oJwt->jwtEncode($config);
             }
 
-            $sResult = \file_get_contents($this->GetPath().'/templates/Editor.html');
+            $sResult = \file_get_contents($this->GetPath() . '/templates/Editor.html');
 
             $iUserId = Api::getAuthenticatedUserId();
             if (0 < $iUserId) {
@@ -669,7 +669,7 @@ class Module extends \Aurora\System\Module\AbstractModule
             'http' => [
                 'method'  => 'POST',
                 'timeout' => '120000',
-                'header'=> 	"Content-type: application/json\r\n" .
+                'header' => "Content-type: application/json\r\n" .
                             "Accept: application/json\r\n" .
                             (empty($headerToken) ? "" : "Authorization: $headerToken\r\n"),
                 'content' => \json_encode($arr)
@@ -865,7 +865,7 @@ class Module extends \Aurora\System\Module\AbstractModule
         }
     }
 
-        /**
+    /**
      * Writes to $aData variable list of DropBox files if $aData['Type'] is DropBox account type.
      *
      * @ignore
@@ -894,7 +894,7 @@ class Module extends \Aurora\System\Module\AbstractModule
                             $sHash = Api::EncodeKeyValues($aHashValues);
                             $oItem->UnshiftAction([
                                 'edit' => [
-                                    'url' => '?download-file/' . $sHash .'/view'
+                                    'url' => '?download-file/' . $sHash . '/view'
                                 ]
                             ]);
                         }
@@ -916,7 +916,7 @@ class Module extends \Aurora\System\Module\AbstractModule
                     $sHash = Api::EncodeKeyValues($aHashValues);
                     $mResult->UnshiftAction([
                         'edit' => [
-                            'url' => '?download-file/' . $sHash .'/view'
+                            'url' => '?download-file/' . $sHash . '/view'
                         ]
                     ]);
                 }
@@ -934,9 +934,7 @@ class Module extends \Aurora\System\Module\AbstractModule
 
 
     // History
-    public function RestoreFromHistory($Url, $Version)
-    {
-    }
+    public function RestoreFromHistory($Url, $Version) {}
 
     protected function getHistoryDir($oFileInfo, $bCreateIfNotExists = false)
     {
