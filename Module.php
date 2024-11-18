@@ -255,12 +255,12 @@ class Module extends \Aurora\System\Module\AbstractModule
             if (empty($sFileName)) {
                 $sFileName = isset($aValues['Name']) ? urldecode($aValues['Name']) : '';
             }
-            if ($sAction === 'view' && $this->isOfficeDocument($sFileName) && !isset($aValues['AuthToken'])) {
+            if ($sAction === 'view' && $this->isOfficeDocument($sFileName) && !isset($aValues[\Aurora\System\Application::AUTH_TOKEN_KEY])) {
                 $sViewerUrl = './?editor=' . urlencode($sEntry . '/' . $sHash . '/' . $sAction . '/' . time());
                 \header('Location: ' . $sViewerUrl);
             } elseif ($this->isOfficeDocument($sFileName) || $sFileName === 'diff.zip' || $sFileName === 'changes.json') {
                 if ($this->isTrustedRequest()) {
-                    $sAuthToken = isset($aValues['AuthToken']) ? $aValues['AuthToken'] : null;
+                    $sAuthToken = $aValues[\Aurora\System\Application::AUTH_TOKEN_KEY] ?? null;
                     if (isset($sAuthToken)) {
                         Api::setAuthToken($sAuthToken);
                         Api::setUserId(
@@ -293,8 +293,8 @@ class Module extends \Aurora\System\Module\AbstractModule
             if (isset($aFileuri[1])) {
                 $sHash = $aFileuri[1];
                 $aHashValues = Api::DecodeKeyValues($sHash);
-                if (!isset($aHashValues['AuthToken'])) {
-                    $aHashValues['AuthToken'] = Api::UserSession()->Set(
+                if (!isset($aHashValues[\Aurora\System\Application::AUTH_TOKEN_KEY])) {
+                    $aHashValues[\Aurora\System\Application::AUTH_TOKEN_KEY] = Api::UserSession()->Set(
                         [
                             'token' => 'auth',
                             'id' => Api::getAuthenticatedUserId()
@@ -586,7 +586,7 @@ class Module extends \Aurora\System\Module\AbstractModule
         if (empty($sFileName)) {
             $sFileName = isset($aValues['Name']) ? urldecode($aValues['Name']) : '';
         }
-        $aValues['AuthToken'] = Api::UserSession()->Set(
+        $aValues[\Aurora\System\Application::AUTH_TOKEN_KEY] = Api::UserSession()->Set(
             [
                 'token' => 'auth',
                 'id' => Api::getAuthenticatedUserId()
@@ -1166,7 +1166,7 @@ class Module extends \Aurora\System\Module\AbstractModule
             'Path' => $sPath,
             'Name' => $sName,
             'FileName' => $sName,
-            'AuthToken' => Api::UserSession()->Set([
+            \Aurora\System\Application::AUTH_TOKEN_KEY => Api::UserSession()->Set([
                 'token' => 'auth',
                 'id' => $iUserId,
                 't' => time(),
