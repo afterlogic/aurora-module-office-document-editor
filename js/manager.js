@@ -4,6 +4,7 @@ module.exports = function (oAppData) {
 	var
 		_ = require('underscore'),
 		$ = require('jquery'),
+		ko = require('knockout'),
 
 		TextUtils = require('%PathToCoreWebclientModule%/js/utils/Text.js'),
 		Types = require('%PathToCoreWebclientModule%/js/utils/Types.js'),
@@ -11,10 +12,31 @@ module.exports = function (oAppData) {
 		App = require('%PathToCoreWebclientModule%/js/App.js'),
 
 		CAbstractFileModel = require('%PathToCoreWebclientModule%/js/models/CAbstractFileModel.js'),
+		
+		CAddFileButtonView = require('modules/%ModuleName%/js/views/CAddFileButtonView.js'),
+		FilesActions = require('modules/%ModuleName%/js/utils/FilesActions.js'),
 
-		FilesActions = require('modules/%ModuleName%/js/utils/FilesActions.js')
+		FilesSettings = require('modules/FilesWebclient/js/Settings.js')
 	;
 
+	const addFileButtonView = ko.observable(null)
+	const executeCommand = (view, sCommandName) => {
+		const oView = view()
+		if (oView) {
+			if (oView[sCommandName]) {
+				const command = oView[sCommandName]
+				if (command.canExecute()) { command() }
+			}
+		} else if (ko.isObservable(addFileButtonView)) {
+			const subscription = addFileButtonView.subscribe(function (oView) {
+				if (oView && oView[sCommandName]) {
+					const command = oView[sCommandName]
+					if (command.canExecute()) { command() }
+				}
+				subscription.dispose()
+			})
+		}
+	}
 	if (App.isUserNormalOrTenant())
 	{
 		return {
@@ -26,13 +48,13 @@ module.exports = function (oAppData) {
 				App.subscribeEvent('FilesWebclient::ConstructView::after', function (oParams) {
 					if (oParams.Name === 'CFilesView') {
 						var oView = oParams.View;
-						if (oView && _.isFunction(oView.registerCreateButtonsController))
-						{
-							var CAddFileButtonView = require('modules/%ModuleName%/js/views/CAddFileButtonView.js');
-							oView.registerCreateButtonsController(new CAddFileButtonView(oView.storageType, oView.currentPath));
+						if (oView && _.isFunction(oView.registerCreateButtonsController)) {
+							addFileButtonView(new CAddFileButtonView(oView.storageType, oView.currentPath))
+							oView.registerCreateButtonsController(addFileButtonView());
 						}
 					}
 				});
+
 				App.subscribeEvent('FilesWebclient::ParseFile::after', function (aParams) {
 					var
 						oFile = aParams[0],
@@ -74,6 +96,51 @@ module.exports = function (oAppData) {
 						}
 					}
 				});
+
+				App.broadcastEvent('RegisterNewItemElement', {
+					'title': TextUtils.i18n('%MODULENAME%/ACTION_CREATE_DOCUMENT'),
+					'handler': () => {
+						// check if we are on Files screen or not
+						if (!window.location.hash.startsWith('#' + FilesSettings.HashModuleName)) {
+							window.location.hash = FilesSettings.HashModuleName
+						}
+
+						executeCommand(addFileButtonView, 'createDocumentCommand')
+					},
+					'className': 'item_document',
+					'order': 5,
+					'column': 2
+				})
+
+				App.broadcastEvent('RegisterNewItemElement', {
+					'title': TextUtils.i18n('%MODULENAME%/ACTION_CREATE_SPREADSHEET'),
+					'handler': () => {
+						// check if we are on Files screen or not
+						if (!window.location.hash.startsWith('#' + FilesSettings.HashModuleName)) {
+							window.location.hash = FilesSettings.HashModuleName
+						}
+
+						executeCommand(addFileButtonView, 'createSpreadSheetCommand')
+					},
+					'className': 'item_spreadsheet',
+					'order': 5,
+					'column': 2
+				})
+				
+				App.broadcastEvent('RegisterNewItemElement', {
+					'title': TextUtils.i18n('%MODULENAME%/ACTION_CREATE_PRESENTATION'),
+					'handler': () => {
+						// check if we are on Files screen or not
+						if (!window.location.hash.startsWith('#' + FilesSettings.HashModuleName)) {
+							window.location.hash = FilesSettings.HashModuleName
+						}
+						
+						executeCommand(addFileButtonView, 'createPresentationCommand')
+					},
+					'className': 'item_presentation',
+					'order': 5,
+					'column': 2
+				})
 			}
 		};
 	}
