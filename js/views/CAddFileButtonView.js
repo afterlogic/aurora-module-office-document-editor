@@ -1,7 +1,6 @@
 'use strict';
 
 var
-	_ = require('underscore'),
 	ko = require('knockout'),
 
 	Utils = require('%PathToCoreWebclientModule%/js/utils/Common.js'),
@@ -22,8 +21,8 @@ var
  */
 function CAddFileButtonView(koStorageType, koCurrentPath)
 {
-	this.storageType = _.isFunction(koStorageType) ? koStorageType : ko.observable('');
-	this.currentPath = _.isFunction(koCurrentPath) ? koCurrentPath : ko.observable('');
+	this.storageType = ko.isObservable(koStorageType) ? koStorageType : ko.observable('');
+	this.currentPath = ko.isObservable(koCurrentPath) ? koCurrentPath : ko.observable('');
 
 	this.allowCreateItems = ko.computed(function () {
 		return	this.storageType() !== Enums.FileStorageType.Encrypted && this.storageType() !== Enums.FileStorageType.Shared;
