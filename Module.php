@@ -991,7 +991,7 @@ class Module extends \Aurora\System\Module\AbstractModule
                     if ($verDir && $verDir->childExists('key.txt')) {
                         $oKeyFile = $verDir->getChild('key.txt');
                         if ($oKeyFile instanceof \Afterlogic\DAV\FS\File) {
-                            $mKeyData = $oKeyFile->get(false);
+                            $mKeyData = $oKeyFile->get();
                             if (is_resource($mKeyData)) {
                                 $key = \stream_get_contents($mKeyData);
                             }
@@ -1054,7 +1054,7 @@ class Module extends \Aurora\System\Module\AbstractModule
                     if ($verDirPrev && $verDirPrev->childExists('changes.json')) {
                         $oChangesFile = $verDirPrev->getChild('changes.json');
                         if ($oChangesFile instanceof \Afterlogic\DAV\FS\File) {
-                            $mChangesFileData = $oChangesFile->get(false);
+                            $mChangesFileData = $oChangesFile->get();
                             if (is_resource($mChangesFileData)) {
                                 $changes = \json_decode(\stream_get_contents($mChangesFileData), true);
                             }
