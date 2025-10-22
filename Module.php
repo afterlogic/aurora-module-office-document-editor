@@ -361,6 +361,11 @@ class Module extends \Aurora\System\Module\AbstractModule
 
                 $sMode = (isset($SharedWithMeAccess) && ($SharedWithMeAccess === Permission::Write || $SharedWithMeAccess === Permission::Reshare)) ||
                     (!isset($SharedWithMeAccess) && $oFileInfo->Owner === $oUser->PublicId) || ($oFileInfo->TypeStr === FileStorageType::Corporate) ? $sMode : 'view';
+
+                if ($SharedWithMeAccess) {
+                    $oFileInfo->Owner = $oUser->PublicId;
+                }
+
                 $aHistory = $this->getHistory($oFileInfo, $docKey, $fileuri);
             } elseif (isset($aHashValues['FileName'])) {
                 $docKey = \md5($aHashValues['FileName'] . time());
@@ -945,6 +950,8 @@ class Module extends \Aurora\System\Module\AbstractModule
         $sName = $oFileInfo->Name;
         $sOwner = $oFileInfo->Owner;
 
+        Api::LogObject($sOwner, \Aurora\System\Enums\LogLevel::Full, 'office-');
+
         /**
          * @var \Afterlogic\DAV\FS\Directory $oNode
          */
@@ -975,7 +982,7 @@ class Module extends \Aurora\System\Module\AbstractModule
         if ($curVer > 0) {
             $hist = [];
             $histData = [];
-            $oUser = CoreModule::getInstance()->GetUserByPublicId($oFileInfo->Owner);
+            $oUser = Api::getUserByPublicId($oFileInfo->Owner);
 
             for ($i = 0; $i <= $curVer; $i++) {
                 $obj = [];
