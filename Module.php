@@ -18,6 +18,7 @@ use Aurora\Modules\Files\Module as FilesModule;
 use Aurora\Modules\Files\Classes\FileItem;
 use Aurora\Modules\OfficeDocumentEditor\Exceptions\Exception;
 use Aurora\System\Enums\FileStorageType;
+use Aurora\System\Facades\Route;
 
 use function Sabre\Uri\split;
 
@@ -92,10 +93,13 @@ class Module extends \Aurora\System\Module\AbstractModule
             Enums\ErrorCodes::ExtensionCannotBeConverted => $this->i18N('ERROR_EXTENSION_CANNOT_BE_CONVERTED')
         ];
 
-        $this->AddEntries([
-            'editor' => 'EntryEditor',
-            'ode-callback' => 'EntryCallback'
-        ]);
+        Route::add(
+            $this,
+            [
+                'editor' => 'EntryEditor',
+                'ode-callback' => 'EntryCallback'
+            ]
+        );
 
         $this->subscribeEvent('System::RunEntry::before', [$this, 'onBeforeFileViewEntry'], 10);
         $this->subscribeEvent('Files::GetFile', [$this, 'onGetFile'], 10);
